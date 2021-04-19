@@ -45,10 +45,11 @@ class NODE_OT_unscatter(Operator):
 
     @classmethod
     def poll(cls, context):
+        def has_scatter_sources(node):
+            scatter_sources = [x for x in node.node_tree.nodes if x.label == 'Scatter Source']
+            return scatter_sources
         nodes = bpy.context.active_object.data.materials[bpy.context.active_object.active_material_index].node_tree.nodes
-        def checkImages():
-            pass
-        return [x for x in nodes if (x.select and x.type == 'GROUP' and x.node_tree.nodes["Color Result"])]
+        return [x for x in nodes if (x.select and x.type == 'GROUP' and has_scatter_sources(x))]
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -58,10 +59,14 @@ class NODE_OT_unscatter(Operator):
         slot = obj.active_material_index
         material = obj.data.materials[slot]
         nodes = material.node_tree.nodes
-        selected_nodes = [x for x in nodes if (x.select and x.type == 'GROUP' and x.node_tree.nodes["Color Result"])]
+        
+        def has_scatter_sources(node):
+            scatter_sources = [x for x in node.node_tree.nodes if x.label == 'Scatter Source']
+            return scatter_sources
+        selected_nodes = [x for x in nodes if (x.select and x.type == 'GROUP' and has_scatter_sources(x))]
 
-        for scatter_node in selected_nodes:
-            scatter_sources = [x for x in scatter_node.node_tree.nodes if x.label == "Scatter Source"]
+        for scatterNode in selected_nodes:
+            scatter_sources = [x for x in scatterNode.node_tree.nodes if x.label == "Scatter Source"]
             scatter_source = scatter_sources[0]
             images = [x for x in scatter_source.node_tree.nodes if x.type == "TEX_IMAGE"]
             for i in range(len(images)):
@@ -71,8 +76,8 @@ class NODE_OT_unscatter(Operator):
                 image.projection = self.projection
                 image.interpolation = self.interpolation
                 image.extension = self.extension
-                image.location = [scatter_node.location[0], scatter_node.location[1] - (255 * i)] 
-            nodes.remove(scatter_node)
+                image.location = [scatterNode.location[0], scatterNode.location[1] - (255 * i)] 
+            nodes.remove(scatterNode)
         
         return {'FINISHED'}
 
