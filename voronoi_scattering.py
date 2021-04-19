@@ -18,7 +18,7 @@ class NODE_OT_scatter(Operator):
             ("uv_simple", "UV Simple", "Scatter based on UV coordinates without allowing overlap. Fastest Method"),
             ("uv_overlap", "UV Overlapping", "Scatter based on UV coordinates and allow cells to overlap neighbors"),
             ("tri-planar_simple", "Tri-Planar Simple", "Scatter based on generated object coordinates without allowing overlapping neigbors. No UVs needed but slower"),
-            ("tri-planar_overlap", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow")
+            ("tri-planar_overlapping", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow")
         ],
         default = "uv_simple", 
     )
@@ -44,12 +44,12 @@ class NODE_OT_scatter(Operator):
     useRandomCol: bpy.props.BoolProperty(
         name = "Random Color Options",
         description = "Adds easy controls for varying the color of each instance at a slight cost of render time",
-        default = False,
+        default = True,
     )
     useWarp: bpy.props.BoolProperty(
         name = "Warp Options",
         description = "Adds ability to distort the shape of each cell at a slight cost of render time",
-        default = False,
+        default = True,
     )
 
     @classmethod
@@ -67,13 +67,13 @@ class NODE_OT_scatter(Operator):
         nodes = material.node_tree.nodes
         selected_nodes = [x for x in nodes if (x.select and x.type == 'TEX_IMAGE')]
 
-        def createScatterNode(textures):
+        def create_scatter_node(textures):
             scatter_node = nodes.new("ShaderNodeGroup")
             scatter_source = nodes.new("ShaderNodeGroup")
             # create friendly name 
-            def sortByName(x):
+            def sort_by_name(x):
                 return x.image.name
-            selected_nodes.sort(key=sortByName)
+            selected_nodes.sort(key=sort_by_name)
             file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tga']
             scatter_node_name = selected_nodes[0].image.name
             for t in file_types:
@@ -203,12 +203,12 @@ class NODE_OT_scatter(Operator):
             nodes.remove(scatter_source)
 
         if self.scatterGrouping == 'interspersed':
-            createScatterNode(selected_nodes)
+            create_scatter_node(selected_nodes)
         elif self.scatterGrouping == 'individual':
             for n in selected_nodes:
-                createScatterNode([n])
+                create_scatter_node([n])
         elif self.scatterGrouping == 'stacked':
-            master_node = createScatterNode([selected_nodes[0]])
+            master_node = create_scatter_node([selected_nodes[0]])
             master_nodes =  master_node.node_tree.nodes
             removed_nodes = [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]
             for n in removed_nodes:
@@ -216,7 +216,7 @@ class NODE_OT_scatter(Operator):
             for x in master_node.node_tree.outputs:
                 master_node.node_tree.outputs.remove(master_node.node_tree.outputs[x.name])
             for n in range(len(selected_nodes)):
-                outer_node = createScatterNode([selected_nodes[n]])
+                outer_node = create_scatter_node([selected_nodes[n]])
                 inner_node = master_nodes.new("ShaderNodeGroup") 
                 inner_node.node_tree = outer_node.node_tree
                 inner_node.location = [-500, (n * 600)]
