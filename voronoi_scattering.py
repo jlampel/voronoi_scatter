@@ -3,6 +3,14 @@ import os
 from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 
+def create_friendly_name(x):
+    name = x
+    file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tga']
+    for t in file_types:
+        if t in name:
+            name = name.replace(t, '')
+    return name 
+
 class NODE_OT_scatter(Operator):
     bl_label = "Voronoi Scatter"
     bl_idname = "node.scatter"
@@ -11,18 +19,18 @@ class NODE_OT_scatter(Operator):
     bl_region_type = "UI"
     bl_options = {'REGISTER', 'UNDO'}
 
-    scatterMethod: bpy.props.EnumProperty(
+    scatter_method: bpy.props.EnumProperty(
         name = "Scatter Method",
         description = "Mapping type and scattering algorithm. Listed from fastest to slowest.",
         items = [
             ("uv_simple", "UV Simple", "Scatter based on UV coordinates without allowing overlap. Fastest Method"),
             ("uv_overlap", "UV Overlapping", "Scatter based on UV coordinates and allow cells to overlap neighbors"),
             ("tri-planar_simple", "Tri-Planar Simple", "Scatter based on generated object coordinates without allowing overlapping neigbors. No UVs needed but slower"),
-            ("tri-planar_overlapping", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow")
+            ("tri-planar_overlap", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow")
         ],
         default = "uv_simple", 
     )
-    scatterGrouping: bpy.props.EnumProperty(
+    scatter_grouping: bpy.props.EnumProperty(
         name = "Grouping",
         description = "Scatter each texture individually, use the same settings for each, or randomly select one for each cell",
         items = [
@@ -32,7 +40,7 @@ class NODE_OT_scatter(Operator):
         ],
         default = "interspersed",  
     )
-    textureInterpolation: bpy.props.EnumProperty(
+    texture_interpolation: bpy.props.EnumProperty(
         name = "Pixel Interpolation",
         description = "The pixel interpolation for each image",
         items = [
@@ -41,15 +49,20 @@ class NODE_OT_scatter(Operator):
         ],
         default = "Closest", 
     )
-    useRandomCol: bpy.props.BoolProperty(
+    use_random_col: bpy.props.BoolProperty(
         name = "Random Color Options",
         description = "Adds easy controls for varying the color of each instance at a slight cost of render time",
-        default = True,
+        default = False,
     )
-    useWarp: bpy.props.BoolProperty(
-        name = "Warp Options",
-        description = "Adds ability to distort the shape of each cell at a slight cost of render time",
-        default = True,
+    use_edge_warp: bpy.props.BoolProperty(
+        name = "Edge Warp Options",
+        description = "Adds ability to distort the edges of each voronoi cell at a slight cost of render time",
+        default = False,
+    )
+    use_texture_warp: bpy.props.BoolProperty(
+        name = "Texture Warp Options",
+        description = "Adds ability to distort the shape of the resulting texture at a slight cost of render time",
+        default = False,
     )
 
     @classmethod
@@ -68,43 +81,38 @@ class NODE_OT_scatter(Operator):
         selected_nodes = [x for x in nodes if (x.select and x.type == 'TEX_IMAGE')]
 
         def create_scatter_node(textures):
+            path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
             scatter_node = nodes.new("ShaderNodeGroup")
             scatter_source = nodes.new("ShaderNodeGroup")
-            # create friendly name 
+
             def sort_by_name(x):
                 return x.image.name
             selected_nodes.sort(key=sort_by_name)
-            file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tga']
-            scatter_node_name = selected_nodes[0].image.name
-            for t in file_types:
-                if t in scatter_node_name:
-                    scatter_node_name = scatter_node_name.replace(t, '') 
                 
-            path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
-            if self.scatterMethod == 'uv_overlap':
+            if self.scatter_method == 'uv_overlap':
                 bpy.ops.wm.append(filename='UV Scatter Overlapping', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['UV Scatter Overlapping'].copy()
-                scatter_node.node_tree.name = scatter_node_name + " UV Scatter Overlapping"
-                scatter_node.name = scatter_node_name + " UV Scatter Overlapping"
-                scatter_node.label = scatter_node_name + " UV Scatter Overlapping"
-            elif self.scatterMethod == 'uv_simple': 
+                scatter_node.node_tree.name = "UV Image Scatter Overlapping"
+                scatter_node.name = "UV Scatter Overlapping"
+                scatter_node.label = "UV Scatter Overlapping"
+            elif self.scatter_method == 'uv_simple': 
                 bpy.ops.wm.append(filename='UV Scatter Fast', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['UV Scatter Fast'].copy()
-                scatter_node.node_tree.name = scatter_node_name + " UV Scatter Fast"
-                scatter_node.name = scatter_node_name + " UV Scatter Fast"
-                scatter_node.label = scatter_node_name + " UV Scatter Fast"
-            elif self.scatterMethod == 'tri-planar_simple': 
+                scatter_node.node_tree.name = " UV Image Scatter Fast"
+                scatter_node.name = "UV Scatter Fast"
+                scatter_node.label = "UV Scatter Fast"
+            elif self.scatter_method == 'tri-planar_simple': 
                 bpy.ops.wm.append(filename='Tri-Planar Scatter Fast', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['Tri-Planar Scatter Fast'].copy()
-                scatter_node.node_tree.name = scatter_node_name + " Tri-Planar Scatter Fast"
-                scatter_node.name = scatter_node_name + " Tri-Planar Scatter Fast"
-                scatter_node.label = scatter_node_name + " Tri-Planar Scatter Fast"
-            elif self.scatterMethod == 'tri-planar_overlap': 
+                scatter_node.node_tree.name = "Tri-Planar Image Scatter Fast"
+                scatter_node.name = "Tri-Planar Scatter Fast"
+                scatter_node.label = "Tri-Planar Scatter Fast"
+            elif self.scatter_method == 'tri-planar_overlap': 
                 bpy.ops.wm.append(filename='Tri-Planar Scatter Overlapping', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['Tri-Planar Scatter Overlapping'].copy()
-                scatter_node.node_tree.name = scatter_node_name + " Tri-Planar Scatter Overlapping"
-                scatter_node.name = scatter_node_name + " Tri-Planar Scatter Overlapping"
-                scatter_node.label = scatter_node_name + " Tri-Planar Scatter Overlapping"
+                scatter_node.node_tree.name = "Tri-Planar Image Scatter Overlapping"
+                scatter_node.name = "Tri-Planar Scatter Overlapping"
+                scatter_node.label = "Tri-Planar Scatter Overlapping"
             scatter_node.width = 250
             def average_loc():
                 loc_x = sum([x.location[0] for x in textures]) / len(textures)
@@ -112,22 +120,7 @@ class NODE_OT_scatter(Operator):
                 return([loc_x, loc_y])
             scatter_node.location = average_loc()
 
-            # remove optional components 
-            if self.useRandomCol == False:
-                random_col_node = scatter_node.node_tree.nodes["Randomize Colors"]
-                scatter_node.node_tree.nodes.remove(random_col_node)
-                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Color Result"].outputs[0], scatter_node.node_tree.nodes["Color Output"].inputs[0])
-                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Hue"])
-                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Saturation"])
-                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Value"])
-            if self.useWarp == False:
-                warp_node =  scatter_node.node_tree.nodes["Warp Coordinates"]
-                scatter_node.node_tree.nodes.remove(warp_node)
-                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Scaled Coordinates"].outputs[0], scatter_node.node_tree.nodes["Warped Coordinates"].inputs[0])
-                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Warp Amount"])
-                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Warp Scale"])
-
-            # create scatter source 
+            # create scatter source
             scatter_source.node_tree = bpy.data.node_groups['Scatter Source Empty'].copy()
             scatter_source.node_tree.name = "Scatter Source"
             scatter_source.name = "Scatter Source"
@@ -144,7 +137,7 @@ class NODE_OT_scatter(Operator):
                 images[x].image = textures[x].image
                 images[x].image.colorspace_settings.name = textures[x].image.colorspace_settings.name
                 images[x].projection = 'FLAT'
-                images[x].interpolation = self.textureInterpolation
+                images[x].interpolation = self.texture_interpolation
                 images[x].extension = 'CLIP'
                 images[x].location = [x * 250, -x * 250]
                 if x > 0:
@@ -196,18 +189,48 @@ class NODE_OT_scatter(Operator):
                     scatter_links.new(images[0].outputs[0], scatter_source_nodes["Color Result"].inputs[0])
                     scatter_links.new(images[0].outputs[1], scatter_source_nodes["Alpha Result"].inputs[0])
 
-            # replace scatter source in group node
+            # replace scatter source and voronoi coordinates in group node
             scatter_source_groups = [x for x in scatter_node.node_tree.nodes if x.label == "Scatter Source"]
             for x in scatter_source_groups:
                 x.node_tree = scatter_source.node_tree
             nodes.remove(scatter_source)
+            scatter_coordinates_groups = [x for x in scatter_node.node_tree.nodes if x.label == "Scatter Coordinates"]
+            new_scatter_coordinates = scatter_coordinates_groups[0].node_tree.copy()
+            for x in scatter_coordinates_groups:
+                x.node_tree = new_scatter_coordinates
 
-        if self.scatterGrouping == 'interspersed':
+            # remove optional components 
+            if self.use_random_col == False:
+                random_col_node = scatter_node.node_tree.nodes["Randomize Colors"]
+                scatter_node.node_tree.nodes.remove(random_col_node)
+                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Color Result"].outputs[0], scatter_node.node_tree.nodes["Color Output"].inputs[0])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Hue"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Saturation"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Value"])
+            if self.use_texture_warp == False:
+                warp_node =  scatter_node.node_tree.nodes["Warp Coordinates"]
+                scatter_node.node_tree.nodes.remove(warp_node)
+                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Scaled Coordinates"].outputs[0], scatter_node.node_tree.nodes["Warped Coordinates"].inputs[0])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Texture Warp"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Texture Warp Scale"])
+            if self.use_edge_warp == False:
+                scatter_node.node_tree.nodes.remove(scatter_node.node_tree.nodes["Noise Texture"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Edge Warp"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Edge Warp Scale"])
+                coordinates_nodes = [x for x in scatter_node.node_tree.nodes if (x.type == 'GROUP' and x.label == "Scatter Coordinates")]
+                coordinates_nodes[0].node_tree.inputs.remove(coordinates_nodes[0].node_tree.inputs["Edge Warp"])
+                coordinates_nodes[0].node_tree.inputs.remove(coordinates_nodes[0].node_tree.inputs["Edge Warp Noise"])
+                coordinates_nodes[0].node_tree.nodes.remove(coordinates_nodes[0].node_tree.nodes["Edge Warp"])
+                coordinates_nodes[0].node_tree.links.new(coordinates_nodes[0].node_tree.nodes["Edge Blur"].outputs[0], coordinates_nodes[0].node_tree.nodes["Voronoi Texture"].inputs[0])
+
+            return scatter_node
+
+        if self.scatter_grouping == 'interspersed':
             create_scatter_node(selected_nodes)
-        elif self.scatterGrouping == 'individual':
+        elif self.scatter_grouping == 'individual':
             for n in selected_nodes:
                 create_scatter_node([n])
-        elif self.scatterGrouping == 'stacked':
+        elif self.scatter_grouping == 'stacked':
             master_node = create_scatter_node([selected_nodes[0]])
             master_nodes =  master_node.node_tree.nodes
             removed_nodes = [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]
@@ -220,10 +243,19 @@ class NODE_OT_scatter(Operator):
                 inner_node = master_nodes.new("ShaderNodeGroup") 
                 inner_node.node_tree = outer_node.node_tree
                 inner_node.location = [-500, (n * 600)]
+                inner_node.node_tree.outputs[0].name = create_friendly_name(selected_nodes[n].image.name)
                 nodes.remove(outer_node)
                 for i in range(len(master_node.node_tree.inputs.items())):
                     master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
                 master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
+
+                background_name = "Background " + create_friendly_name(selected_nodes[n].image.name)
+                if n == 0:
+                    master_node.node_tree.inputs["Background"].name = background_name
+                else:
+                    inner_node.node_tree.inputs["Background"].name = background_name
+                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
+
 
         for texture in selected_nodes:
             nodes.remove(texture)
