@@ -32,10 +32,10 @@ class NODE_OT_scatter(Operator):
     )
     scatter_grouping: bpy.props.EnumProperty(
         name = "Grouping",
-        description = "Scatter each texture individually, use the same settings for each, or randomly select one for each cell",
+        description = "Scatter each texture individually or randomly select one for each cell",
         items = [
             ("individual", "Individual", "Creates a unique scatter node for each image"),
-            ("stacked", "Stacked", "Creates one scatter node that applies the same settings to each image. Useful for PBR setups"),
+            # ("stacked", "Stacked", "Creates one scatter node that applies the same settings to each image. Useful for PBR setups"),
             ("interspersed", "Interspersed", "Creates one scatter node and randomly assigns images to each voronoi cell")
         ],
         default = "interspersed",  
@@ -67,18 +67,16 @@ class NODE_OT_scatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        nodes = bpy.context.active_object.data.materials[bpy.context.active_object.active_material_index].node_tree.nodes
+        selected_nodes = context.selected_nodes
+        nodes = selected_nodes[0].id_data.nodes
         return [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)]
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        obj = bpy.context.active_object
-        slot = obj.active_material_index
-        material = obj.data.materials[slot]
-        nodes = material.node_tree.nodes
-        selected_nodes = [x for x in nodes if (x.select and x.type == 'TEX_IMAGE')]
+        selected_nodes = context.selected_nodes
+        nodes = selected_nodes[0].id_data.nodes
 
         def create_scatter_node(textures):
             path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
@@ -222,8 +220,36 @@ class NODE_OT_scatter(Operator):
                 coordinates_nodes[0].node_tree.inputs.remove(coordinates_nodes[0].node_tree.inputs["Edge Warp Noise"])
                 coordinates_nodes[0].node_tree.nodes.remove(coordinates_nodes[0].node_tree.nodes["Edge Warp"])
                 coordinates_nodes[0].node_tree.links.new(coordinates_nodes[0].node_tree.nodes["Edge Blur"].outputs[0], coordinates_nodes[0].node_tree.nodes["Voronoi Texture"].inputs[0])
-
+            if self.scatter_method == "uv_simple" or self.scatter_method == "tri-planar_simple":
+                new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0]
             return scatter_node
+        
+        def create_stacked_node(textures): 
+            master_node = create_scatter_node([textures[0]])
+            master_nodes =  master_node.node_tree.nodes
+            for n in [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]:
+                 master_nodes.remove(n)
+            for x in master_node.node_tree.outputs:
+                master_node.node_tree.outputs.remove(master_node.node_tree.outputs[x.name])
+            for n in range(len(textures)):
+                outer_node = create_scatter_node([textures[n]])
+                inner_node = master_nodes.new("ShaderNodeGroup") 
+                inner_node.node_tree = outer_node.node_tree
+                nodes.remove(outer_node)
+                inner_node.location = [-500, (n * 600)]
+                inner_node.node_tree.outputs[0].name = create_friendly_name(textures[n].image.name)
+
+                non_bg_inputs = [x for x in master_node.node_tree.inputs.items() if "Background" not in x[0]]
+                for i in range(len(non_bg_inputs)):
+                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
+                background_name = "Background " + create_friendly_name(textures[n].image.name)
+                if n == 0:
+                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs["Background"], inner_node.inputs["Background"])
+                    master_node.node_tree.inputs["Background"].name = background_name
+                else:
+                    inner_node.node_tree.inputs["Background"].name = background_name
+                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
+                master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
 
         if self.scatter_grouping == 'interspersed':
             create_scatter_node(selected_nodes)
@@ -231,32 +257,7 @@ class NODE_OT_scatter(Operator):
             for n in selected_nodes:
                 create_scatter_node([n])
         elif self.scatter_grouping == 'stacked':
-            master_node = create_scatter_node([selected_nodes[0]])
-            master_nodes =  master_node.node_tree.nodes
-            removed_nodes = [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]
-            for n in removed_nodes:
-                 master_nodes.remove(n)
-            for x in master_node.node_tree.outputs:
-                master_node.node_tree.outputs.remove(master_node.node_tree.outputs[x.name])
-            for n in range(len(selected_nodes)):
-                outer_node = create_scatter_node([selected_nodes[n]])
-                inner_node = master_nodes.new("ShaderNodeGroup") 
-                inner_node.node_tree = outer_node.node_tree
-                inner_node.location = [-500, (n * 600)]
-                inner_node.node_tree.outputs[0].name = create_friendly_name(selected_nodes[n].image.name)
-                nodes.remove(outer_node)
-                for i in range(len(master_node.node_tree.inputs.items())):
-                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
-                master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
-
-                background_name = "Background " + create_friendly_name(selected_nodes[n].image.name)
-                if n == 0:
-                    master_node.node_tree.inputs["Background"].name = background_name
-                else:
-                    inner_node.node_tree.inputs["Background"].name = background_name
-                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
-
-
+            create_stacked_node(selected_nodes)
         for texture in selected_nodes:
             nodes.remove(texture)
 
