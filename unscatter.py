@@ -45,12 +45,15 @@ class NODE_OT_unscatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        def has_scatter_sources(node):
-            scatter_sources = [x for x in node.node_tree.nodes if x.label == 'Scatter Source']
-            return scatter_sources
-        selected_nodes = context.selected_nodes
-        nodes = selected_nodes[0].id_data.nodes
-        return [x for x in nodes if (x.select and x.type == 'GROUP' and has_scatter_sources(x))]
+        if context.selected_nodes:
+            def has_scatter_sources(node):
+                scatter_sources = [x for x in node.node_tree.nodes if x.label == 'Scatter Source']
+                return scatter_sources
+            selected_nodes = context.selected_nodes
+            nodes = selected_nodes[0].id_data.nodes
+            return [x for x in nodes if (x.select and x.type == 'GROUP' and has_scatter_sources(x))]
+        else:
+            return False
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)

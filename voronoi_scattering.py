@@ -24,9 +24,10 @@ class NODE_OT_scatter(Operator):
         description = "Mapping type and scattering algorithm. Listed from fastest to slowest.",
         items = [
             ("uv_simple", "UV Simple", "Scatter based on UV coordinates without allowing overlap. Fastest Method"),
-            ("uv_overlap", "UV Overlapping", "Scatter based on UV coordinates and allow cells to overlap neighbors"),
+            ("box_simple", "Box Map Simple", "Scatter with the image set to box mapping. Much faster than tri-planar but without rotation or x scale control"),
             ("tri-planar_simple", "Tri-Planar Simple", "Scatter based on generated object coordinates without allowing overlapping neigbors. No UVs needed but slower"),
-            ("tri-planar_overlap", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow")
+            ("uv_overlap", "UV Overlapping", "Scatter based on UV coordinates and allow cells to overlap neighbors. Much slower since it needs to calculate 9 cells rather than 1"),
+            ("tri-planar_overlap", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow since it needs to calcuate 9 cells x 3")
         ],
         default = "uv_simple", 
     )
@@ -49,6 +50,16 @@ class NODE_OT_scatter(Operator):
         ],
         default = "Closest", 
     )
+    texture_extrapolation: bpy.props.EnumProperty(
+        name = "Image Extrapolation",
+        description = "Sets whether or not the image repeats outside of its bounds",
+        items = [
+            ("CLIP", "Clip", "Does not repeat texture and sets outer pixels as transparent"),
+            ("EXTEND", "Extend", "Repeats only the boundary pixels. Only useful is extremely specific circumstances"), 
+            ("REPEAT", "Repeat", "Repeats the image indefinitely. Useful for scattering tiled textures over a terrain")
+        ],
+        default = "CLIP"
+    )
     use_random_col: bpy.props.BoolProperty(
         name = "Random Color Options",
         description = "Adds easy controls for varying the color of each instance at a slight cost of render time",
@@ -67,10 +78,13 @@ class NODE_OT_scatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        selected_nodes = context.selected_nodes
-        nodes = selected_nodes[0].id_data.nodes
-        return [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)]
-
+        if context.selected_nodes:
+            selected_nodes = context.selected_nodes
+            nodes = selected_nodes[0].id_data.nodes
+            return [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)]
+        else:
+            return False
+            
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
@@ -91,26 +105,27 @@ class NODE_OT_scatter(Operator):
                 bpy.ops.wm.append(filename='UV Scatter Overlapping', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['UV Scatter Overlapping'].copy()
                 scatter_node.node_tree.name = "UV Image Scatter Overlapping"
-                scatter_node.name = "UV Scatter Overlapping"
                 scatter_node.label = "UV Scatter Overlapping"
             elif self.scatter_method == 'uv_simple': 
                 bpy.ops.wm.append(filename='UV Scatter Fast', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['UV Scatter Fast'].copy()
                 scatter_node.node_tree.name = " UV Image Scatter Fast"
-                scatter_node.name = "UV Scatter Fast"
                 scatter_node.label = "UV Scatter Fast"
             elif self.scatter_method == 'tri-planar_simple': 
                 bpy.ops.wm.append(filename='Tri-Planar Scatter Fast', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['Tri-Planar Scatter Fast'].copy()
                 scatter_node.node_tree.name = "Tri-Planar Image Scatter Fast"
-                scatter_node.name = "Tri-Planar Scatter Fast"
                 scatter_node.label = "Tri-Planar Scatter Fast"
             elif self.scatter_method == 'tri-planar_overlap': 
                 bpy.ops.wm.append(filename='Tri-Planar Scatter Overlapping', directory=path)
                 scatter_node.node_tree = bpy.data.node_groups['Tri-Planar Scatter Overlapping'].copy()
                 scatter_node.node_tree.name = "Tri-Planar Image Scatter Overlapping"
-                scatter_node.name = "Tri-Planar Scatter Overlapping"
                 scatter_node.label = "Tri-Planar Scatter Overlapping"
+            elif self.scatter_method == 'box_simple': 
+                bpy.ops.wm.append(filename='Box Mapping Scatter Fast', directory=path)
+                scatter_node.node_tree = bpy.data.node_groups['Box Mapping Scatter Fast'].copy()
+                scatter_node.node_tree.name = "Box Mapping Image Scatter Fast"
+                scatter_node.label = "Box Mapping Scatter Fast"
             scatter_node.width = 250
             def average_loc():
                 loc_x = sum([x.location[0] for x in textures]) / len(textures)
@@ -134,10 +149,19 @@ class NODE_OT_scatter(Operator):
             for x in range(len(images)):
                 images[x].image = textures[x].image
                 images[x].image.colorspace_settings.name = textures[x].image.colorspace_settings.name
-                images[x].projection = 'FLAT'
                 images[x].interpolation = self.texture_interpolation
-                images[x].extension = 'CLIP'
+                images[x].extension = self.texture_extrapolation
                 images[x].location = [x * 250, -x * 250]
+                if self.scatter_method == 'box_simple':
+                    images[x].projection = 'BOX'
+                    d = images[x].driver_add("projection_blend")
+                    d.driver.expression = "var"
+                    var = d.driver.variables.new()
+                    var.targets[0].id_type = 'NODETREE'
+                    var.targets[0].id = scatter_node.id_data
+                    var.targets[0].data_path = 'nodes["' + scatter_node.name + '"]' + '.inputs["Box Map Blending"].default_value'
+                else:
+                    images[x].projection = 'FLAT'
                 if x > 0:
                     multiply = scatter_source_nodes.new("ShaderNodeMath")
                     multiply.operation = 'MULTIPLY'
@@ -221,7 +245,7 @@ class NODE_OT_scatter(Operator):
                 coordinates_nodes[0].node_tree.nodes.remove(coordinates_nodes[0].node_tree.nodes["Edge Warp"])
                 coordinates_nodes[0].node_tree.links.new(coordinates_nodes[0].node_tree.nodes["Edge Blur"].outputs[0], coordinates_nodes[0].node_tree.nodes["Voronoi Texture"].inputs[0])
             if self.scatter_method == "uv_simple" or self.scatter_method == "tri-planar_simple":
-                new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0]
+                new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0.5]
             return scatter_node
         
         def create_stacked_node(textures): 
