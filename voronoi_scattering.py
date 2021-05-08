@@ -50,29 +50,34 @@ class NODE_OT_scatter(Operator):
         ],
         default = "Closest", 
     )
-    texture_extrapolation: bpy.props.EnumProperty(
-        name = "Image Extrapolation",
-        description = "Sets whether or not the image repeats outside of its bounds",
-        items = [
-            ("CLIP", "Clip", "Does not repeat texture and sets outer pixels as transparent"),
-            ("EXTEND", "Extend", "Repeats only the boundary pixels. Only useful is extremely specific circumstances"), 
-            ("REPEAT", "Repeat", "Repeats the image indefinitely. Useful for scattering tiled textures over a terrain")
-        ],
-        default = "CLIP"
-    )
-    use_random_col: bpy.props.BoolProperty(
-        name = "Random Color Options",
-        description = "Adds easy controls for varying the color of each instance at a slight cost of render time",
-        default = False,
-    )
+    # texture_extrapolation: bpy.props.EnumProperty(
+    #    name = "Image Extrapolation",
+    #    description = "Sets whether or not the image repeats outside of its bounds",
+    #    items = [
+    #        ("CLIP", "Clip", "Does not repeat texture and sets outer pixels as transparent"),
+    #        ("REPEAT", "Repeat", "Repeats the image indefinitely. Useful for scattering tiled textures over a terrain"),
+    #        # ("EXTEND", "Extend", "Repeats only the boundary pixels. Only useful is extremely specific circumstances")
+    #    ],
+    #    default = "CLIP"
+    #)
     use_edge_warp: bpy.props.BoolProperty(
-        name = "Edge Warp Options",
+        name = "Enable Edge Warp",
         description = "Adds ability to distort the edges of each voronoi cell at a slight cost of render time",
         default = False,
     )
     use_texture_warp: bpy.props.BoolProperty(
-        name = "Texture Warp Options",
+        name = "Enable Texture Warp",
         description = "Adds ability to distort the shape of the resulting texture at a slight cost of render time",
+        default = False,
+    )
+    use_random_col: bpy.props.BoolProperty(
+        name = "Enable Random Color",
+        description = "Adds easy controls for varying the color of each instance at a slight cost of render time",
+        default = False,
+    )
+    use_transparency: bpy.props.BoolProperty(
+        name = "Enable Transparency",
+        description = "Adds ability to change the background, alpha clip threshold, and scatter density at a slight cost of render time",
         default = False,
     )
 
@@ -150,8 +155,11 @@ class NODE_OT_scatter(Operator):
                 images[x].image = textures[x].image
                 images[x].image.colorspace_settings.name = textures[x].image.colorspace_settings.name
                 images[x].interpolation = self.texture_interpolation
-                images[x].extension = self.texture_extrapolation
                 images[x].location = [x * 250, -x * 250]
+                if self.use_transparency == True:
+                    images[x].extension = 'CLIP'
+                else:
+                    images[x].extension = 'REPEAT'
                 if self.scatter_method == 'box_simple':
                     images[x].projection = 'BOX'
                     d = images[x].driver_add("projection_blend")
@@ -222,15 +230,15 @@ class NODE_OT_scatter(Operator):
                 x.node_tree = new_scatter_coordinates
 
             # remove optional components 
-            if self.use_random_col == False:
+            if self.use_random_col == False and scatter_node.node_tree.nodes["Randomize Colors"]:
                 random_col_node = scatter_node.node_tree.nodes["Randomize Colors"]
                 scatter_node.node_tree.nodes.remove(random_col_node)
                 scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Color Result"].outputs[0], scatter_node.node_tree.nodes["Color Output"].inputs[0])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Hue"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Saturation"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Value"])
-            if self.use_texture_warp == False:
-                warp_node =  scatter_node.node_tree.nodes["Warp Coordinates"]
+            if self.use_texture_warp == False and scatter_node.node_tree.nodes["Warp Coordinates"]:
+                warp_node = scatter_node.node_tree.nodes["Warp Coordinates"]
                 scatter_node.node_tree.nodes.remove(warp_node)
                 scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Scaled Coordinates"].outputs[0], scatter_node.node_tree.nodes["Warped Coordinates"].inputs[0])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Texture Warp"])
@@ -246,6 +254,18 @@ class NODE_OT_scatter(Operator):
                 coordinates_nodes[0].node_tree.links.new(coordinates_nodes[0].node_tree.nodes["Edge Blur"].outputs[0], coordinates_nodes[0].node_tree.nodes["Voronoi Texture"].inputs[0])
             if self.scatter_method == "uv_simple" or self.scatter_method == "tri-planar_simple":
                 new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0.5]
+            if self.use_transparency == False:
+                for node in scatter_source_nodes:
+                    if node.parent and node.parent.name == "Transparency Options":
+                        alpha_mix_nodes.append(node)
+                for node in alpha_mix_nodes:
+                    scatter_source_nodes.remove(node)
+                scatter_source_nodes.remove(scatter_source_nodes["Transparency Options"])
+                scatter_links.new(scatter_source_nodes["Group Input"].outputs["Random Color"], scatter_source_nodes["Group Output"].inputs["Random Color"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Density"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Alpha Clip"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Background"])
+
             return scatter_node
         
         def create_stacked_node(textures): 
@@ -266,13 +286,14 @@ class NODE_OT_scatter(Operator):
                 non_bg_inputs = [x for x in master_node.node_tree.inputs.items() if "Background" not in x[0]]
                 for i in range(len(non_bg_inputs)):
                     master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
-                background_name = "Background " + create_friendly_name(textures[n].image.name)
-                if n == 0:
-                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs["Background"], inner_node.inputs["Background"])
-                    master_node.node_tree.inputs["Background"].name = background_name
-                else:
-                    inner_node.node_tree.inputs["Background"].name = background_name
-                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
+                if self.use_transparency == True:
+                    background_name = "Background " + create_friendly_name(textures[n].image.name)
+                    if n == 0:
+                        master_node.node_tree.links.new(master_nodes["Group Input"].outputs["Background"], inner_node.inputs["Background"])
+                        master_node.node_tree.inputs["Background"].name = background_name
+                    else:
+                        inner_node.node_tree.inputs["Background"].name = background_name
+                        master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
                 master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
 
         if self.scatter_grouping == 'interspersed':
