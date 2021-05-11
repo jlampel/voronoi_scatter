@@ -24,10 +24,10 @@ class NODE_OT_scatter(Operator):
         description = "Mapping type and scattering algorithm. Listed from fastest to slowest.",
         items = [
             ("uv_simple", "UV Simple", "Scatter based on UV coordinates without allowing overlap. Fastest Method"),
-            ("box_simple", "Box Map Simple", "Scatter with the image set to box mapping. Much faster than tri-planar but without rotation or x scale control"),
-            ("tri-planar_simple", "Tri-Planar Simple", "Scatter based on generated object coordinates without allowing overlapping neigbors. No UVs needed but slower"),
-            ("uv_overlap", "UV Overlapping", "Scatter based on UV coordinates and allow cells to overlap neighbors. Much slower since it needs to calculate 9 cells rather than 1"),
-            ("tri-planar_overlap", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Extremely slow since it needs to calcuate 9 cells x 3")
+            # ("box_simple", "Box Map Simple", "Scatter with the image set to box mapping. Much faster than tri-planar but without rotation or x scale control"),
+            ("tri-planar_simple", "Tri-Planar Simple", "Scatter based on generated object coordinates without allowing overlapping neigbors"),
+            ("uv_overlap", "UV Overlapping", "Scatter based on UV coordinates and allow cells to overlap neighbors. Slower since it needs to calculate 9 cells rather than 1"),
+            ("tri-planar_overlap", "Tri-Planar Overlap", "Scatter based on generated object coordinates and allow overlapping neighbors. Slower since it needs to calculate 9 cells rather than 1")
         ],
         default = "uv_simple", 
     )
