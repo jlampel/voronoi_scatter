@@ -108,26 +108,16 @@ class NODE_OT_scatter(Operator):
                 return x.image.name
             selected_nodes.sort(key=sort_by_name)
                 
-            if self.transparency == 'overlapping' and self.projection_method == 'uv':
-                bpy.ops.wm.append(filename='UV Scatter Overlapping', directory=path)
-                scatter_node.node_tree = bpy.data.node_groups['UV Scatter Overlapping'].copy()
-                scatter_node.node_tree.name = "UV Image Scatter Overlapping"
-                scatter_node.label = "UV Scatter Overlapping"
-            elif self.transparency != 'overlapping' and self.projection_method == 'uv': 
-                bpy.ops.wm.append(filename='UV Scatter Fast', directory=path)
-                scatter_node.node_tree = bpy.data.node_groups['UV Scatter Fast'].copy()
-                scatter_node.node_tree.name = " UV Image Scatter Fast"
-                scatter_node.label = "UV Scatter Fast"
-            elif self.transparency != 'overlapping' and self.projection_method == 'tri-planar': 
-                bpy.ops.wm.append(filename='Tri-Planar Scatter Fast', directory=path)
-                scatter_node.node_tree = bpy.data.node_groups['Tri-Planar Scatter Fast'].copy()
-                scatter_node.node_tree.name = "Tri-Planar Image Scatter Fast"
-                scatter_node.label = "Tri-Planar Scatter Fast"
-            elif self.transparency == 'overlapping' and self.projection_method == 'tri-planar': 
-                bpy.ops.wm.append(filename='Tri-Planar Scatter Overlapping', directory=path)
-                scatter_node.node_tree = bpy.data.node_groups['Tri-Planar Scatter Overlapping'].copy()
-                scatter_node.node_tree.name = "Tri-Planar Image Scatter Overlapping"
-                scatter_node.label = "Tri-Planar Scatter Overlapping"
+            if self.transparency == 'overlapping':
+                bpy.ops.wm.append(filename='Scatter Overlapping', directory=path)
+                scatter_node.node_tree = bpy.data.node_groups['Scatter Overlapping'].copy()
+                scatter_node.node_tree.name = "Image Scatter Overlapping"
+                scatter_node.label = "Scatter Overlapping"
+            elif self.transparency != 'overlapping': 
+                bpy.ops.wm.append(filename='Scatter Fast', directory=path)
+                scatter_node.node_tree = bpy.data.node_groups['Scatter Fast'].copy()
+                scatter_node.node_tree.name = "Image Scatter Fast"
+                scatter_node.label = "Scatter Fast"
             scatter_node.width = 250
             def average_loc():
                 loc_x = sum([x.location[0] for x in textures]) / len(textures)
@@ -253,6 +243,10 @@ class NODE_OT_scatter(Operator):
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Density"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Alpha Clip"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Background"])
+            if self.projection_method == 'uv':
+                scatter_node.node_tree.nodes.remove(scatter_node.node_tree.nodes["Tri-Planar Mapping"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Tri-Planar Blending"])
+                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Texture Coordinate"].outputs[2], scatter_node.node_tree.nodes["Shift to Center"].inputs[0])
 
             return scatter_node
         
