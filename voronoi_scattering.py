@@ -57,6 +57,11 @@ class NODE_OT_scatter(Operator):
         ],
         default = "none",
     )
+    use_edge_blur: bpy.props.BoolProperty(
+        name = "Enable Edge Blur",
+        description = "Adds ability to blend the edges of each voronoi cell without distorting the texture at a slight cost of render time. This helps seams between cells appear less obvious, especially for tileable textures",
+        default = True,
+    )
     use_edge_warp: bpy.props.BoolProperty(
         name = "Enable Edge Warp",
         description = "Adds ability to distort the edges of each voronoi cell without distorting the texture at a slight cost of render time. This helps seams between cells appear less obvious, especially for tileable textures",
@@ -79,6 +84,7 @@ class NODE_OT_scatter(Operator):
         layout.prop(self, "projection_method", expand=True)
         layout.prop(self, "transparency")
         layout.prop(self, "texture_interpolation")
+        layout.prop(self, "use_edge_blur")
         layout.prop(self, "use_edge_warp")
         layout.prop(self, "use_texture_warp")
         layout.prop(self, "use_random_col")
@@ -98,26 +104,30 @@ class NODE_OT_scatter(Operator):
     def execute(self, context):
         selected_nodes = context.selected_nodes
         nodes = selected_nodes[0].id_data.nodes
+        bpy.ops.node.select_all(action='TOGGLE')
 
         def create_scatter_node(textures):
             path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
             scatter_node = nodes.new("ShaderNodeGroup")
             scatter_source = nodes.new("ShaderNodeGroup")
-
-            def sort_by_name(x):
-                return x.image.name
-            selected_nodes.sort(key=sort_by_name)
-                
+            
             if self.transparency == 'overlapping':
-                bpy.ops.wm.append(filename='Scatter Overlapping', directory=path)
-                scatter_node.node_tree = bpy.data.node_groups['Scatter Overlapping'].copy()
-                scatter_node.node_tree.name = "Image Scatter Overlapping"
+                initial_nodetrees = set(bpy.data.node_groups)
+                bpy.ops.wm.append(filename='SS - Scatter Overlapping', directory=path)
+                appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
+                appended_node = [x for x in appended_nodetrees if 'SS - Scatter Overlapping' in x.name][0]
+                scatter_node.node_tree = bpy.data.node_groups[appended_node.name].copy()
+                scatter_node.node_tree.name = "SS - Image Scatter Overlapping"
                 scatter_node.label = "Scatter Overlapping"
             elif self.transparency != 'overlapping': 
-                bpy.ops.wm.append(filename='Scatter Fast', directory=path)
-                scatter_node.node_tree = bpy.data.node_groups['Scatter Fast'].copy()
-                scatter_node.node_tree.name = "Image Scatter Fast"
+                initial_nodetrees = set(bpy.data.node_groups)
+                bpy.ops.wm.append(filename='SS - Scatter Fast', directory=path)
+                appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
+                appended_node = [x for x in appended_nodetrees if 'SS - Scatter Fast' in x.name][0]
+                scatter_node.node_tree = bpy.data.node_groups[appended_node.name].copy()
+                scatter_node.node_tree.name = "SS - Image Scatter Fast"
                 scatter_node.label = "Scatter Fast"
+
             scatter_node.width = 250
             def average_loc():
                 loc_x = sum([x.location[0] for x in textures]) / len(textures)
@@ -126,8 +136,8 @@ class NODE_OT_scatter(Operator):
             scatter_node.location = average_loc()
 
             # create scatter source
-            scatter_source.node_tree = bpy.data.node_groups['Scatter Source Empty'].copy()
-            scatter_source.node_tree.name = "Scatter Source"
+            scatter_source.node_tree = bpy.data.node_groups['SS - Scatter Source Empty'].copy()
+            scatter_source.node_tree.name = "SS - Scatter Source"
             scatter_source.name = "Scatter Source"
             scatter_source.label = "Scatter Source"
 
@@ -215,9 +225,10 @@ class NODE_OT_scatter(Operator):
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Hue"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Saturation"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Value"])
-            if self.use_texture_warp == False and scatter_node.node_tree.nodes["Warp Coordinates"]:
-                warp_node = scatter_node.node_tree.nodes["Warp Coordinates"]
-                scatter_node.node_tree.nodes.remove(warp_node)
+            if self.use_texture_warp == False:
+                warp_nodes = [x for x in scatter_node.node_tree.nodes if (x.parent == scatter_node.node_tree.nodes["Texture Warp"] or x.name == "Texture Warp")]
+                for node in warp_nodes:
+                    scatter_node.node_tree.nodes.remove(node)
                 scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Scaled Coordinates"].outputs[0], scatter_node.node_tree.nodes["Warped Coordinates"].inputs[0])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Texture Warp"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Texture Warp Scale"])
@@ -225,13 +236,32 @@ class NODE_OT_scatter(Operator):
                 scatter_node.node_tree.nodes.remove(scatter_node.node_tree.nodes["Noise Texture"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Edge Warp"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Edge Warp Scale"])
-                coordinates_nodes = [x for x in scatter_node.node_tree.nodes if (x.type == 'GROUP' and x.label == "Scatter Coordinates")]
-                coordinates_nodes[0].node_tree.inputs.remove(coordinates_nodes[0].node_tree.inputs["Edge Warp"])
-                coordinates_nodes[0].node_tree.inputs.remove(coordinates_nodes[0].node_tree.inputs["Edge Warp Noise"])
-                coordinates_nodes[0].node_tree.nodes.remove(coordinates_nodes[0].node_tree.nodes["Edge Warp"])
-                coordinates_nodes[0].node_tree.links.new(coordinates_nodes[0].node_tree.nodes["Edge Blur"].outputs[0], coordinates_nodes[0].node_tree.nodes["Voronoi Texture"].inputs[0])
+                new_scatter_coordinates.inputs.remove(new_scatter_coordinates.inputs["Edge Warp"])
+                new_scatter_coordinates.inputs.remove(new_scatter_coordinates.inputs["Edge Warp Noise"])
+                new_scatter_coordinates.nodes.remove(new_scatter_coordinates.nodes["Edge Warp"])
+                new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Edge Blur"].outputs[0], new_scatter_coordinates.nodes["Voronoi Texture"].inputs[0])
+            if self.use_edge_blur == False:
+                scatter_node.node_tree.nodes.remove(scatter_node.node_tree.nodes["White Noise Texture"])
+                scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Edge Blur"])
+                new_scatter_coordinates.inputs.remove(new_scatter_coordinates.inputs["Edge Blur"])
+                new_scatter_coordinates.inputs.remove(new_scatter_coordinates.inputs["Edge Blur Noise"])
+                new_scatter_coordinates.nodes.remove(new_scatter_coordinates.nodes["Edge Blur"])
+                new_scatter_coordinates.nodes.remove(new_scatter_coordinates.nodes["Blur Range"])
+                if self.use_edge_warp:
+                    new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Shift Cells"].outputs[0], new_scatter_coordinates.nodes["Edge Warp"].inputs[1])
+                else: 
+                    new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Shift Cells"].outputs[0], new_scatter_coordinates.nodes["Voronoi Texture"].inputs[0])
             if self.transparency != 'overlapping':
                 new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0.5]
+                new_scatter_coordinates.inputs.remove(new_scatter_coordinates.inputs["Shift"])
+                new_scatter_coordinates.nodes.remove(new_scatter_coordinates.nodes["Shift Cells"])
+                new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Group Input"].outputs[0], new_scatter_coordinates.nodes["Subtract"].inputs[1])
+                if self.use_edge_blur:
+                    new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Group Input"].outputs[0], new_scatter_coordinates.nodes["Edge Blur"].inputs[1])
+                elif self.use_edge_warp:
+                    new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Group Input"].outputs[0], new_scatter_coordinates.nodes["Edge Warp"].inputs[1])
+                else:
+                    new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Group Input"].outputs[0], new_scatter_coordinates.nodes["Voronoi Texture"].inputs[0])
             if self.transparency == 'none':
                 for node in scatter_source_nodes:
                     if node.parent and node.parent.name == "Transparency Options":
