@@ -104,7 +104,6 @@ class NODE_OT_scatter(Operator):
     def execute(self, context):
         selected_nodes = context.selected_nodes
         nodes = selected_nodes[0].id_data.nodes
-        bpy.ops.node.select_all(action='TOGGLE')
 
         def create_scatter_node(textures):
             path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
