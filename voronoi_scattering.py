@@ -28,16 +28,16 @@ class NODE_OT_scatter(Operator):
         ],
         default = "uv"
     )
-    scatter_grouping: bpy.props.EnumProperty(
-        name = "Grouping",
-        description = "Scatter each texture individually or randomly select one for each cell",
-        items = [
-            ("individual", "Individual", "Creates a unique scatter node for each image"),
-            ("stacked", "Stacked", "Creates one scatter node that applies the same settings to each image. Useful for PBR setups"),
-            ("interspersed", "Interspersed", "Creates one scatter node and randomly assigns images to each voronoi cell")
-        ],
-        default = "interspersed",  
-    )
+    #scatter_grouping: bpy.props.EnumProperty(
+    #    name = "Grouping",
+    #    description = "Scatter each texture individually or randomly select one for each cell",
+    #    items = [
+    #        ("individual", "Individual", "Creates a unique scatter node for each image"),
+    #        ("stacked", "Stacked", "Creates one scatter node that applies the same settings to each image. Useful for PBR setups"),
+    #        ("interspersed", "Interspersed", "Creates one scatter node and randomly assigns images to each voronoi cell")
+    #    ],
+    #    default = "interspersed",  
+    #)
     texture_interpolation: bpy.props.EnumProperty(
         name = "Pixel Interpolation",
         description = "The pixel interpolation for each image",
@@ -53,6 +53,7 @@ class NODE_OT_scatter(Operator):
         items = [
             ("none", "None", "The texture is set to repeat to prevent gaps and all transparency settings are removed to improve performance"),
             ("simple", "Simple", "Adds ability to change the background, alpha clip threshold, and scatter density at a slight cost of render time"),
+            ("stacked", "Stacked", "Creates Simple scatter nodes for each texture and chains them all together, which is faster than using Overlapping"),
             ("overlapping", "Overlapping", "All the options of Simple with the additional benefit of enabling neighboring cells to overlap each other. This increases render time since 9 cells are calculated rather than 1")
         ],
         default = "none",
@@ -251,9 +252,9 @@ class NODE_OT_scatter(Operator):
                 else: 
                     new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Shift Cells"].outputs[0], new_scatter_coordinates.nodes["Voronoi Texture"].inputs[0])
             if self.transparency != 'overlapping':
-                new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0.5]
                 new_scatter_coordinates.inputs.remove(new_scatter_coordinates.inputs["Shift"])
                 new_scatter_coordinates.nodes.remove(new_scatter_coordinates.nodes["Shift Cells"])
+                new_scatter_coordinates.nodes["Location Origin"].inputs[1].default_value = [0.5, 0.5, 0.5]
                 new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Group Input"].outputs[0], new_scatter_coordinates.nodes["Subtract"].inputs[1])
                 if self.use_edge_blur:
                     new_scatter_coordinates.links.new(new_scatter_coordinates.nodes["Group Input"].outputs[0], new_scatter_coordinates.nodes["Edge Blur"].inputs[1])
@@ -275,45 +276,69 @@ class NODE_OT_scatter(Operator):
             if self.projection_method == 'uv':
                 scatter_node.node_tree.nodes.remove(scatter_node.node_tree.nodes["Tri-Planar Mapping"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Tri-Planar Blending"])
-                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Texture Coordinate"].outputs[2], scatter_node.node_tree.nodes["Shift to Center"].inputs[0])
+                scatter_node.node_tree.links.new(scatter_node.node_tree.nodes["Texture Coordinate"].outputs[2], scatter_node.node_tree.nodes["Scaled Coordinates"].inputs[0])
 
             return scatter_node
         
-        def create_stacked_node(textures): 
+        #def create_stacked_scatter_node(textures): 
+        #    master_node = create_scatter_node([textures[0]])
+        #    master_nodes =  master_node.node_tree.nodes
+        #    for n in [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]:
+        #         master_nodes.remove(n)
+        #    for x in master_node.node_tree.outputs:
+        #        master_node.node_tree.outputs.remove(master_node.node_tree.outputs[x.name])
+        #    for n in range(len(textures)):
+        #        outer_node = create_scatter_node([textures[n]])
+        #        inner_node = master_nodes.new("ShaderNodeGroup") 
+        #        inner_node.node_tree = outer_node.node_tree
+        #        nodes.remove(outer_node)
+        #        inner_node.location = [-500, (n * 600)]
+        #        inner_node.node_tree.outputs[0].name = create_friendly_name(textures[n].image.name)
+        #        non_bg_inputs = [x for x in master_node.node_tree.inputs.items() if "Background" not in x[0]]
+        #        for i in range(len(non_bg_inputs)):
+        #            master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
+        #        if self.transparency != 'none':
+        #            background_name = "Background " + create_friendly_name(textures[n].image.name)
+        #            if n == 0:
+        #                master_node.node_tree.links.new(master_nodes["Group Input"].outputs["Background"], inner_node.inputs["Background"])
+        #                master_node.node_tree.inputs["Background"].name = background_name
+        #            else:
+        #                inner_node.node_tree.inputs["Background"].name = background_name
+        #                master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
+        #        master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
+
+        def create_stacked_transparency_node(textures):
             master_node = create_scatter_node([textures[0]])
             master_nodes =  master_node.node_tree.nodes
+            master_inputs = [x for x in master_node.node_tree.inputs.items()]
             for n in [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]:
                  master_nodes.remove(n)
-            for x in master_node.node_tree.outputs:
-                master_node.node_tree.outputs.remove(master_node.node_tree.outputs[x.name])
+            inner_nodes = []
             for n in range(len(textures)):
                 outer_node = create_scatter_node([textures[n]])
-                inner_node = master_nodes.new("ShaderNodeGroup") 
+                inner_node = master_nodes.new("ShaderNodeGroup")
+                inner_nodes.append(inner_node)
                 inner_node.node_tree = outer_node.node_tree
                 nodes.remove(outer_node)
-                inner_node.location = [-500, (n * 600)]
-                inner_node.node_tree.outputs[0].name = create_friendly_name(textures[n].image.name)
-
-                non_bg_inputs = [x for x in master_node.node_tree.inputs.items() if "Background" not in x[0]]
-                for i in range(len(non_bg_inputs)):
+                inner_node.location = [-2300 + (n*250), 0]
+                for i in range(len(master_inputs)):
                     master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
-                if self.transparency != 'none':
-                    background_name = "Background " + create_friendly_name(textures[n].image.name)
-                    if n == 0:
-                        master_node.node_tree.links.new(master_nodes["Group Input"].outputs["Background"], inner_node.inputs["Background"])
-                        master_node.node_tree.inputs["Background"].name = background_name
-                    else:
-                        inner_node.node_tree.inputs["Background"].name = background_name
-                        master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
-                master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
+                if n > 0:
+                    master_node.node_tree.links.new(inner_nodes[n - 1].outputs[0], inner_node.inputs['Background'])
+                    seed = master_nodes.new("ShaderNodeMath")
+                    seed.location = [inner_node.location[0] - 300, inner_node.location[1] - 500]
+                    seed.operation = 'MULTIPLY'
+                    seed.inputs[1].default_value = 1 / (n + 1)
+                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs['Random Seed'], seed.inputs[0])
+                    master_node.node_tree.links.new(seed.outputs[0], inner_node.inputs['Random Seed'])
+                master_node.node_tree.links.new(inner_nodes[-1].outputs[0], master_nodes["Group Output"].inputs[0])
+                master_node.node_tree.links.new(inner_nodes[-1].outputs[1], master_nodes["Group Output"].inputs[1])
 
-        if self.scatter_grouping == 'interspersed':
+        if self.transparency != 'stacked':
             create_scatter_node(selected_nodes)
-        elif self.scatter_grouping == 'individual':
-            for n in selected_nodes:
-                create_scatter_node([n])
-        elif self.scatter_grouping == 'stacked':
-            create_stacked_node(selected_nodes)
+        else: 
+            create_stacked_transparency_node(selected_nodes)
+
         for texture in selected_nodes:
             nodes.remove(texture)
 
