@@ -184,6 +184,7 @@ class NODE_OT_scatter(Operator):
             alpha_mix_nodes = []
 
             if self.layering == 'stacked' or self.layering == 'stacked_alpha':
+                scatter_node.node_tree.name = 'SS - Image Scatter Stacked'
                 unsorted_textures = textures
                 map_types = ['Albedo', 'Metallic', 'Roughness', 'Glossiness', 'Specular', 'Emission', 'Alpha', 'Bump', 'Normal']
                 sorted_textures = []
@@ -232,14 +233,17 @@ class NODE_OT_scatter(Operator):
                     scatter_links.new(scatter_nodes["Density Input"].outputs[0], scatter_source.inputs["Density"])
                     scatter_links.new(scatter_nodes["Group Input"].outputs["Alpha Clip"], scatter_source.inputs["Alpha Clip"])
 
+                    randomization = 'none'
+                    texture_type = create_friendly_name(image.image.name)
                     if self.use_random_col:
                         if (
-                            create_friendly_name(image.image.name) == 'Metallic' 
-                            or create_friendly_name(image.image.name) == 'Roughness' 
-                            or create_friendly_name(image.image.name) == 'Specular' 
-                            or create_friendly_name(image.image.name) == 'Glossiness' 
-                            or create_friendly_name(image.image.name) == 'Alpha'
+                            texture_type == 'Metallic' 
+                            or texture_type == 'Roughness' 
+                            or texture_type == 'Specular' 
+                            or texture_type == 'Glossiness' 
+                            or texture_type == 'Alpha'
                         ):
+                            randomization = 'value'
                             randomize_value = scatter_nodes.new("ShaderNodeGroup")
                             randomize_value.node_tree = bpy.data.node_groups['SS - Randomize Value']
                             randomize_value.location = [scatter_source.location[0] + 250, scatter_source.location[1]]
@@ -256,14 +260,15 @@ class NODE_OT_scatter(Operator):
                             moving_to = 13
                             scatter_node.node_tree.inputs.move(moving_from, moving_to)
                             scatter_links.new(randomize_value.outputs[0], scatter_nodes['Group Output'].inputs[-1])
-                            scatter_node.node_tree.outputs[x].name = create_friendly_name(image.image.name)
+                            scatter_node.node_tree.outputs[x].name = texture_type
                         elif (
-                            create_friendly_name(image.image.name) == 'Normal'
-                            or create_friendly_name(image.image.name) == 'Bump'
+                            texture_type == 'Normal'
+                            or texture_type == 'Bump'
                         ):
                             scatter_links.new(scatter_source.outputs[0], scatter_nodes['Group Output'].inputs[-1])
-                            scatter_node.node_tree.outputs[x].name = create_friendly_name(image.image.name)
+                            scatter_node.node_tree.outputs[x].name = texture_type
                         else: 
+                            randomization = 'hsv'
                             randomize_hsv = scatter_nodes.new("ShaderNodeGroup")
                             randomize_hsv.node_tree = bpy.data.node_groups['SS - Randomize HSV']
                             randomize_hsv.location = [scatter_source.location[0] + 250, scatter_source.location[1]]
@@ -274,21 +279,52 @@ class NODE_OT_scatter(Operator):
                             scatter_links.new(scatter_nodes['Group Input'].outputs['Random Value'], randomize_hsv.inputs['Random Value'])
                             scatter_links.new(scatter_nodes['Group Input'].outputs['Random Seed'], randomize_hsv.inputs['Random Seed'])
                             scatter_links.new(randomize_hsv.outputs[0], scatter_nodes['Group Output'].inputs[-1])
-                            scatter_node.node_tree.outputs[x].name = create_friendly_name(image.image.name)
+                            scatter_node.node_tree.outputs[x].name = texture_type
                     else:
                         scatter_links.new(scatter_source.outputs[0], scatter_nodes['Group Output'].inputs[-1])
-                        scatter_node.node_tree.outputs[x].name = create_friendly_name(image.image.name)
+                        scatter_node.node_tree.outputs[x].name = texture_type
 
                     if self.layering == 'stacked_alpha':
-                        pass 
-                        # Mix background and connect inputs
+                        mix_bg_nodes = [x for x in scatter_nodes if (x.parent and "Mix Background" in x.parent.name) or "Mix Background" in x.name]
+                        for node in mix_bg_nodes:
+                            scatter_nodes.remove(node)
+                        get_alpha = scatter_nodes.new('ShaderNodeMath')
+                        get_alpha.operation = 'GREATER_THAN'
+                        get_alpha.inputs[1].default_value = 0
+                        get_alpha.location = [scatter_source.location[0] + 400, scatter_source.location[1]]
+                        scatter_links.new(scatter_source.outputs[1], get_alpha.inputs[0])
+                        alpha_over = scatter_nodes.new('ShaderNodeMixRGB')
+                        alpha_over.blend_type = 'MIX'
+                        alpha_over.location = [scatter_source.location[0] + 600, scatter_source.location[1]]
+                        scatter_links.new(get_alpha.outputs[0], alpha_over.inputs[0])
+                        # Create and connect inputs
+                        scatter_links.new(scatter_nodes['Group Input'].outputs[-1], alpha_over.inputs[1])
+                        scatter_node.node_tree.inputs[-1].name = texture_type + " Background"
+                        if texture_type == 'Normal':
+                            scatter_node.inputs[-1].default_value = [0.5, 0.5, 1, 1]
+                        elif texture_type == 'Bump':
+                            scatter_node.inputs[-1].default_value = [0.5, 0.5, 0.5, 1]
+                        else:
+                            scatter_node.inputs[-1].default_value = [0, 0, 0, 1]
+                        # Connect outputs 
+                        if randomization == 'value':
+                            scatter_links.new(randomize_value.outputs[0], alpha_over.inputs[2])
+                        elif randomization == 'hsv':
+                            scatter_links.new(randomize_hsv.outputs[0], alpha_over.inputs[2])
+                        else: 
+                            scatter_links.new(scatter_source.outputs[0], alpha_over.inputs[2])
+                        scatter_links.new(alpha_over.outputs[0], scatter_nodes['Group Output'].inputs[x])
+                        scatter_node.width = 300
 
                 scatter_nodes.remove(scatter_nodes["Scatter Source"])
+                scatter_links.new(scatter_sources[0].outputs[1], scatter_nodes['Group Output'].inputs[-1])
                 if self.use_random_col == True:
-                        scatter_nodes.remove(scatter_nodes['SS - Randomize HSV'])
-                        scatter_nodes.remove(scatter_nodes['Color Result'])
-                        scatter_nodes.remove(scatter_nodes['Color Output'])
-                        scatter_nodes.remove(scatter_nodes['Group Input Random Col'])
+                    scatter_nodes.remove(scatter_nodes['SS - Randomize HSV'])
+                    scatter_nodes.remove(scatter_nodes['Color Result'])
+                    scatter_nodes.remove(scatter_nodes['Color Output'])
+                    scatter_nodes.remove(scatter_nodes['Group Input Random Col'])
+                if transparency == True:
+                    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Background'])
 
             else:
                 # create scatter source
