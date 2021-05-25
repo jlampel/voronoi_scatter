@@ -1,0 +1,1 @@
+The python for this addon is GPL as noted in _init_.py and can be downloaded, copied, or distributed for free for any purpose. The node groups included with this addon are under a seperate license and are royalty free if purchased from the Blender Market. 
