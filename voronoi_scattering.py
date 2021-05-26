@@ -4,14 +4,26 @@ import re
 from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 
+def append_node(nodes, node_tree_name):
+    path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
+    node_group = nodes.new("ShaderNodeGroup")
+    initial_nodetrees = set(bpy.data.node_groups)
+    bpy.ops.wm.append(filename=node_tree_name, directory=path)
+    appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
+    appended_node = [x for x in appended_nodetrees if node_tree_name in x.name][0]
+    node_group.node_tree = bpy.data.node_groups[appended_node.name].copy()
+    node_group.node_tree.name = node_tree_name
+    return node_group
+
 def create_friendly_name(x):
     name = x
     file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tga']
     albedo_names = ['albedo', 'base color', 'base_color', 'basecolor', 'base_col', 'color', 'diffuse', 'diff', 'col', 'd']
+    ao_names = ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion']
     metal_names = ['metal', 'metallic', 'metalness', 'm', 'met', 'mt']
     rough_names = ['roughness', 'rough', 'r', 'rgh']
     gloss_names = ['gloss', 'glossiness', 'gls']
-    spec_names = ['spec', 'specular', 's']
+    spec_names = ['spec', 'specular', 's', 'refl', 'reflection']
     emit_names = ['emit', 'emission', 'emissive', 'glow', 'glw', 'e']
     alpha_names = ['alpha', 'transparent', 'transparency', 'opacity']
     normal_names = ['normal', 'nrm', 'n', 'nrlm']
@@ -22,6 +34,9 @@ def create_friendly_name(x):
     for word in re.split('[^a-z]', name.lower()):
         if word in albedo_names: 
             name = 'Albedo'
+            break
+        if word in ao_names: 
+            name = 'AO'
             break
         elif word in metal_names: 
             name = 'Metallic'
@@ -49,6 +64,7 @@ def create_friendly_name(x):
             break
     return name 
 
+            
 class NODE_OT_scatter(Operator):
     bl_label = "Voronoi Scatter"
     bl_idname = "node.scatter"
@@ -76,19 +92,19 @@ class NODE_OT_scatter(Operator):
         default = "Closest", 
     )
     layering: bpy.props.EnumProperty(
-        name = "Layering",
+        name = "Scatter Method",
         description = "How the texture interacts with the background and the other scattered textures around it",
         items = [
             ("coordinates", "Just Coordinates", "Creates a scatter node that only outputs the scattered vectors for greater flexibility"),
-            ("none", "None", "The texture is set to repeat to prevent gaps and all transparency settings are removed to improve performance"),
-            ("blended", "Blended", "Creates a scatter node without transparency for each image and blends them together using a noise texture"),
+            ("simple", "Simple", "The texture is set to repeat to prevent gaps and all transparency settings are removed to improve performance"),
+            # ("blended", "Blended", "Creates a scatter node without transparency for each image and blends them together using a noise texture"),
             ("stacked", "Stacked", "Scatters each image using the same controls and creates an output for each. Useful for PBR setups without transparency"),
-            ("simple", "Simple Alpha", "Adds ability to change the background, alpha clip threshold, and scatter density"),
+            ("simple_alpha", "Simple Alpha", "Adds ability to change the background, alpha clip threshold, and scatter density"),
             ("stacked_alpha", "Stacked Alpha", "Scatters each texture using the same controls and creates an output and a background input for each. Useful for PBR decals"),
             ("layered", "Layered Alpha", "Creates Simple scatter nodes for each texture and chains them all together, which is faster than using Overlapping"),
             ("overlapping", "Overlapping Alpha", "All the options of Simple Alpha with the additional benefit of enabling neighboring cells to overlap each other. This increases shader compilation time since 9 cells are calculated rather than 1")
         ],
-        default = "none",
+        default = "simple",
     )
     use_edge_blur: bpy.props.BoolProperty(
         name = "Enable Edge Blur",
@@ -137,47 +153,31 @@ class NODE_OT_scatter(Operator):
     def execute(self, context):
         selected_nodes = context.selected_nodes
         nodes = selected_nodes[0].id_data.nodes
+        links = selected_nodes[0].id_data.links
 
         def create_scatter_node(textures):
-            path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
-            scatter_node = nodes.new("ShaderNodeGroup")
-
             transparency = True
-            if self.layering == 'none' or self.layering == 'blended' or self.layering == 'stacked':
+            if self.layering == 'simple' or self.layering == 'blended' or self.layering == 'stacked':
                 transparency = False
-            
+            # Import corresponding group node
             if self.layering == 'overlapping':
-                initial_nodetrees = set(bpy.data.node_groups)
-                bpy.ops.wm.append(filename='SS - Scatter Overlapping', directory=path)
-                appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
-                appended_node = [x for x in appended_nodetrees if 'SS - Scatter Overlapping' in x.name][0]
-                scatter_node.node_tree = bpy.data.node_groups[appended_node.name].copy()
-                scatter_node.node_tree.name = "SS - Image Scatter Overlapping"
+                scatter_node = append_node(nodes, 'SS - Scatter Overlapping')
                 scatter_node.label = "Scatter Overlapping"
             elif self.layering != 'overlapping': 
-                initial_nodetrees = set(bpy.data.node_groups)
-                bpy.ops.wm.append(filename='SS - Scatter Fast', directory=path)
-                appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
-                appended_node = [x for x in appended_nodetrees if 'SS - Scatter Fast' in x.name][0]
-                scatter_node.node_tree = bpy.data.node_groups[appended_node.name].copy()
-                scatter_node.node_tree.name = "SS - Image Scatter Fast"
+                scatter_node = append_node(nodes, 'SS - Scatter Fast')
                 scatter_node.label = "Scatter Fast"
-
             scatter_node.width = 250
-            def average_loc():
-                loc_x = sum([x.location[0] for x in textures]) / len(textures)
-                loc_y = sum([x.location[1] for x in textures]) / len(textures) + 150
-                return([loc_x, loc_y])
-            scatter_node.location = average_loc()
+            scatter_node.location = [
+                sum([x.location[0] for x in textures]) / len(textures),
+                sum([x.location[1] for x in textures]) / len(textures) + 150
+            ]
             scatter_links = scatter_node.node_tree.links
             scatter_nodes = scatter_node.node_tree.nodes
-
             # replace voronoi coordinates in group node
             scatter_coordinates_groups = [x for x in scatter_nodes if x.label == "Scatter Coordinates"]
             new_scatter_coordinates = scatter_coordinates_groups[0].node_tree.copy()
             for x in scatter_coordinates_groups:
                 x.node_tree = new_scatter_coordinates
-            
             # create scatter sources 
             scatter_sources = []
             col_mix_nodes = []
@@ -186,7 +186,7 @@ class NODE_OT_scatter(Operator):
             if self.layering == 'stacked' or self.layering == 'stacked_alpha':
                 scatter_node.node_tree.name = 'SS - Image Scatter Stacked'
                 unsorted_textures = textures
-                map_types = ['Albedo', 'Metallic', 'Roughness', 'Glossiness', 'Specular', 'Emission', 'Alpha', 'Bump', 'Normal']
+                map_types = ['Albedo', 'AO', 'Metallic', 'Specular', 'Roughness', 'Glossiness', 'Emission', 'Alpha', 'Bump', 'Normal']
                 sorted_textures = []
                 for map in map_types:
                     for texture in unsorted_textures:
@@ -237,8 +237,7 @@ class NODE_OT_scatter(Operator):
                     texture_type = create_friendly_name(image.image.name)
                     if self.use_random_col:
                         if (
-                            texture_type == 'Metallic' 
-                            or texture_type == 'Roughness' 
+                            texture_type == 'Roughness' 
                             or texture_type == 'Specular' 
                             or texture_type == 'Glossiness' 
                             or texture_type == 'Alpha'
@@ -264,6 +263,7 @@ class NODE_OT_scatter(Operator):
                         elif (
                             texture_type == 'Normal'
                             or texture_type == 'Bump'
+                            or texture_type == 'Metallic' 
                         ):
                             scatter_links.new(scatter_source.outputs[0], scatter_nodes['Group Output'].inputs[-1])
                             scatter_node.node_tree.outputs[x].name = texture_type
@@ -302,7 +302,7 @@ class NODE_OT_scatter(Operator):
                         scatter_node.node_tree.inputs[-1].name = texture_type + " Background"
                         if texture_type == 'Normal':
                             scatter_node.inputs[-1].default_value = [0.5, 0.5, 1, 1]
-                        elif texture_type == 'Bump':
+                        elif texture_type == 'Bump' or texture_type == 'Roughness':
                             scatter_node.inputs[-1].default_value = [0.5, 0.5, 0.5, 1]
                         else:
                             scatter_node.inputs[-1].default_value = [0, 0, 0, 1]
@@ -334,7 +334,6 @@ class NODE_OT_scatter(Operator):
                 scatter_source.node_tree.name = "SS - Scatter Source"
                 scatter_source.name = "Scatter Source"
                 scatter_source.label = "Scatter Source"
-
                 # populate images      
                 scatter_source_nodes = scatter_source.node_tree.nodes
                 images = [scatter_source_nodes.new("ShaderNodeTexImage") for x in textures]
@@ -355,22 +354,18 @@ class NODE_OT_scatter(Operator):
                         multiply.operation = 'MULTIPLY'
                         multiply.location = [(x * 250) + 350, (-x * 250) + 600]
                         multiply_nodes.append(multiply)
-                        
                         greater = scatter_source_nodes.new("ShaderNodeMath")
                         greater.operation = 'GREATER_THAN'
                         greater.location = [(x * 250) + 350, (-x * 250) + 425]
                         greater_nodes.append(greater)
-                        
                         col_mix = scatter_source_nodes.new("ShaderNodeMixRGB")
                         col_mix.location = [(x * 250) + 350, (-x * 250) + 250]
                         col_mix.hide = True
                         col_mix_nodes.append(col_mix)
-                        
                         alpha_mix = scatter_source_nodes.new("ShaderNodeMixRGB")
                         alpha_mix.location = [(x * 250) + 350, (-x * 250) + 200]
                         alpha_mix.hide = True
                         alpha_mix_nodes.append(alpha_mix)
-                        
                 # connect the scatter source nodes
                 scatter_source_links = scatter_source.node_tree.links
                 for x in range(len(images)):
@@ -398,12 +393,10 @@ class NODE_OT_scatter(Operator):
                     elif x == 0:
                         scatter_source_links.new(images[0].outputs[0], scatter_source_nodes["Color Result"].inputs[0])
                         scatter_source_links.new(images[0].outputs[1], scatter_source_nodes["Alpha Result"].inputs[0])
-
                 scatter_source_groups = [x for x in scatter_nodes if x.label == "Scatter Source"]
                 for x in scatter_source_groups:
                     x.node_tree = scatter_source.node_tree
                 nodes.remove(scatter_source)
-
             # remove optional components 
             if self.use_random_col == False:
                 random_col_nodes = [x for x in scatter_nodes if (x.parent and "Randomize HSV" in x.parent.name) or "Randomize HSV" in x.name]
@@ -472,59 +465,8 @@ class NODE_OT_scatter(Operator):
                 scatter_nodes.remove(scatter_nodes["Tri-Planar Mapping"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Tri-Planar Blending"])
                 scatter_node.node_tree.links.new(scatter_nodes["Centered UVs"].outputs[0], scatter_nodes["Pattern Scale"].inputs[0])
-
             return scatter_node
         
-        def create_stacked_scatter_node(textures): 
-            master_node = create_scatter_node([textures[0]])
-            master_nodes =  master_node.node_tree.nodes
-            master_node.node_tree.name = "SS - Image Scatter Stacked"
-            for n in [x for x in  master_nodes if x.name != "Group Input" and x.name != "Group Output"]:
-                 master_nodes.remove(n)
-            for x in master_node.node_tree.outputs:
-                master_node.node_tree.outputs.remove(master_node.node_tree.outputs[x.name])
-
-            unsorted_textures = textures
-            map_types = ['Albedo', 'Metallic', 'Roughness', 'Glossiness', 'Emission', 'Bump', 'Normal']
-            sorted_textures = []
-            for map in map_types:
-                for texture in unsorted_textures:
-                    if create_friendly_name(texture.image.name) == map:
-                        sorted_textures.append(texture)
-            for texture in sorted_textures:
-                unsorted_textures.remove(texture)
-            for texture in unsorted_textures:
-                sorted_textures.append(texture)
-
-            inner_nodes = []
-            for n in range(len(sorted_textures)):
-                outer_node = create_scatter_node([sorted_textures[n]])
-                inner_node = master_nodes.new("ShaderNodeGroup") 
-                inner_nodes.append(inner_node)
-                inner_node.node_tree = outer_node.node_tree
-                nodes.remove(outer_node)
-                inner_node.location = [-500, (n * 600)]
-                inner_node.node_tree.outputs[0].name = create_friendly_name(sorted_textures[n].image.name)
-                non_bg_inputs = [x for x in master_node.node_tree.inputs.items() if "Background" not in x[0]]
-                for i in range(len(non_bg_inputs)):
-                    master_node.node_tree.links.new(master_nodes["Group Input"].outputs[i], inner_node.inputs[i])
-                if self.layering == 'stacked_alpha':
-                    background_name = "Background " + create_friendly_name(sorted_textures[n].image.name)
-                    if n == 0:
-                        master_node.node_tree.links.new(master_nodes["Group Input"].outputs["Background"], inner_node.inputs["Background"])
-                        master_node.node_tree.inputs["Background"].name = background_name
-                    else:
-                        inner_node.node_tree.inputs["Background"].name = background_name
-                        master_node.node_tree.links.new(master_nodes["Group Input"].outputs[-1], inner_node.inputs[background_name])
-                master_node.node_tree.links.new(inner_node.outputs[0], master_nodes["Group Output"].inputs[-1])
-            master_node.node_tree.links.new(inner_nodes[-1].outputs["Random Color"], master_nodes["Group Output"].inputs[-1])
-            for texture in sorted_textures:
-                if texture:
-                    print('Removing ' + texture.image.name)
-                    nodes.remove(texture)
-
-            return master_node
-
         def create_layered_transparency_node(textures):
             master_node = create_scatter_node([textures[0]])
             master_node.node_tree.name = 'SS - Image Scatter Layered'
@@ -572,31 +514,55 @@ class NODE_OT_scatter(Operator):
                 master_node.node_tree.links.new(inner_nodes[-1].outputs[0], master_nodes["Group Output"].inputs[1])
             return master_node
 
+        def create_coordinates_node(textures):
+            scatter_node = append_node(nodes, 'SS - Scatter Mapping')
+            scatter_node.label = "Scatter Mapping"
+            scatter_node.width = 250
+            scatter_node.location = [
+                min([tex.location[0] for tex in textures]) - 350, 
+                sum([x.location[1] for x in textures]) / len(textures) + 100
+            ]
+            for texture in textures:
+                links.new(scatter_node.outputs[0], texture.inputs['Vector'])
+                texture.interpolation = self.texture_interpolation
+            texture_coordinates = nodes.new("ShaderNodeTexCoord")
+            if self.projection_method == 'uv':
+                texture_coordinates.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 235]
+                links.new(texture_coordinates.outputs['UV'], scatter_node.inputs['Vector'])
+            else:
+                tri_planar = append_node(nodes, 'SS - Tri-Planar Mapping')
+                tri_planar.label = "Tri-Planar Mapping"
+                tri_planar.width = 150
+                tri_planar.location = [scatter_node.location[0] - 200, scatter_node.location[1] - 345]
+                texture_coordinates.location = [scatter_node.location[0] - 400, scatter_node.location[1] - 235]
+                links.new(texture_coordinates.outputs['Object'], tri_planar.inputs['Vector'])
+                links.new(tri_planar.outputs['Vector'], scatter_node.inputs['Vector'])
+
         if self.layering == 'coordinates':
-            print("Still working on this feature")
-        if self.layering == 'none':
+            create_coordinates_node(selected_nodes)
+        elif (
+            self.layering == 'simple' 
+            or self.layering == 'blended'
+            or self.layering == 'stacked'
+            or self.layering == 'stacked_alpha'
+            or self.layering == 'overlapping'
+        ):
             scatter_node = create_scatter_node(selected_nodes)
-        elif self.layering == 'blended':
-            scatter_node = create_scatter_node(selected_nodes)
-        elif self.layering == 'stacked':
-            scatter_node = create_scatter_node(selected_nodes)
-        elif self.layering == 'simple':
+            for texture in selected_nodes: nodes.remove(texture)
+        elif self.layering == 'simple_alpha':
             scatter_node = create_scatter_node(selected_nodes)
             scatter_node.inputs["Texture Scale"].default_value = 2
             scatter_node.inputs["Random Cell Shape"].default_value = 1
             scatter_node.inputs["Random Rotation"].default_value = 1
-        elif self.layering == 'stacked_alpha':
-            scatter_node = create_scatter_node(selected_nodes)
+            for texture in selected_nodes: nodes.remove(texture)
         elif self.layering == 'layered': 
             scatter_node = create_layered_transparency_node(selected_nodes)
             scatter_node.inputs["Texture Scale"].default_value = 2
             scatter_node.inputs["Random Cell Shape"].default_value = 1
             scatter_node.inputs["Random Rotation"].default_value = 1
-        elif self.layering == 'overlapping':
-            scatter_node = create_scatter_node(selected_nodes)
-        
-        for texture in selected_nodes:
-            nodes.remove(texture)
+            for texture in selected_nodes: nodes.remove(texture)
+        else:
+            print('Error - scatter method not recognized')
 
         return {'FINISHED'}
 
