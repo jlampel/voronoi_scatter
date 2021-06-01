@@ -63,8 +63,7 @@ def create_friendly_name(x):
             name = 'Bump'
             break
     return name 
-
-            
+           
 class NODE_OT_scatter(Operator):
     bl_label = "Voronoi Scatter"
     bl_idname = "node.scatter"
@@ -97,7 +96,7 @@ class NODE_OT_scatter(Operator):
         items = [
             ("coordinates", "Just Coordinates", "Creates a scatter node that only outputs the scattered vectors for greater flexibility"),
             ("simple", "Simple", "The texture is set to repeat to prevent gaps and all transparency settings are removed to improve performance"),
-            # ("blended", "Blended", "Creates a scatter node without transparency for each image and blends them together using a noise texture"),
+            ("blended", "Blended", "Creates a scatter node without transparency for each image and blends them together using a noise texture"),
             ("stacked", "Stacked", "Scatters each image using the same controls and creates an output for each. Useful for PBR setups without transparency"),
             ("simple_alpha", "Simple Alpha", "Adds ability to change the background, alpha clip threshold, and scatter density"),
             ("stacked_alpha", "Stacked Alpha", "Scatters each texture using the same controls and creates an output and a background input for each. Useful for PBR decals"),
@@ -141,8 +140,7 @@ class NODE_OT_scatter(Operator):
     @classmethod
     def poll(cls, context):
         if context.selected_nodes:
-            selected_nodes = context.selected_nodes
-            nodes = selected_nodes[0].id_data.nodes
+            nodes = context.selected_nodes[0].id_data.nodes
             return [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)]
         else:
             return False
@@ -326,6 +324,74 @@ class NODE_OT_scatter(Operator):
                 if transparency == True:
                     scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Background'])
 
+            elif self.layering == 'blended':
+                # create scatter source
+                scatter_source = nodes.new("ShaderNodeGroup")
+                scatter_sources.append(scatter_source)
+                scatter_source.node_tree = bpy.data.node_groups['SS - Scatter Source Empty'].copy()
+                scatter_source.node_tree.name = "SS - Scatter Source"
+                scatter_source.name = "Scatter Source"
+                scatter_source.label = "Scatter Source"
+                # populate images      
+                scatter_source_nodes = scatter_source.node_tree.nodes
+                scatter_source_links = scatter_source.node_tree.links
+                images = [scatter_source_nodes.new("ShaderNodeTexImage") for x in textures]
+                noise = scatter_source_nodes.new('ShaderNodeTexNoise')
+                noise.location = [0, 250]
+                noise.inputs['Roughness'].default_value = 1
+                noise.noise_dimensions = '2D'
+                scatter_source_links.new(scatter_source_nodes["Group Input"].outputs[-1], noise.inputs['Vector'])
+                scatter_source_links.new(scatter_source_nodes["Group Input"].outputs[-1], noise.inputs['Scale'])
+                scatter_source_links.new(scatter_source_nodes["Group Input"].outputs[-1], noise.inputs['Detail'])
+                hsv = scatter_source_nodes.new('ShaderNodeSeparateHSV')
+                hsv.location = [200, 250]
+                scatter_source_links.new(noise.outputs[1], hsv.inputs[0])
+                multiply_nodes = []
+                greater_nodes = []
+                for x in range(len(images)):
+                    scatter_source_nodes["Number of Images"].outputs[0].default_value = x + 1
+                    images[x].image = textures[x].image
+                    images[x].image.colorspace_settings.name = textures[x].image.colorspace_settings.name
+                    images[x].interpolation = self.texture_interpolation
+                    images[x].projection = 'FLAT'
+                    if transparency:
+                        images[x].extension = 'CLIP'
+                    else:
+                        images[x].extension = 'REPEAT'
+                    images[x].location = [x * 250, -x * 250]
+                    if x > 0:
+                        mix = scatter_source_nodes.new('ShaderNodeMixRGB')
+                        mix.location = [(x * 250) + 300, (-x * 250) + 150]
+                        col_mix_nodes.append(mix)
+                        greater = scatter_source_nodes.new('ShaderNodeMath')
+                        greater.operation = 'GREATER_THAN'
+                        greater.location = [(x * 250) + 300, (-x * 250) + 300]
+                        greater_nodes.append(greater)
+                        multiply = scatter_source_nodes.new("ShaderNodeMath")
+                        multiply.operation = 'MULTIPLY'
+                        multiply.location = [(x * 250) + 300, (-x * 250) + 500]
+                        multiply_nodes.append(multiply)
+                # connect the scatter source nodes
+                for x in range(len(images)):
+                    scatter_source_links.new(scatter_source_nodes["Group Input"].outputs[0], images[x].inputs[0])
+                    if x > 0:
+                        scatter_source_links.new(scatter_source_nodes["Fraction"].outputs[0], multiply_nodes[x - 1].inputs[0])
+                        multiply_nodes[x - 1].inputs[1].default_value = x
+                        scatter_source_links.new(scatter_source_nodes["Group Input"].outputs[1], greater_nodes[x - 1].inputs[0])
+                        scatter_source_links.new(multiply_nodes[x - 1].outputs[0], greater_nodes[x - 1].inputs[1])
+                        scatter_source_links.new(greater_nodes[x - 1].outputs[0], col_mix_nodes[x - 1].inputs[0])
+                        if x == 1:
+                            scatter_source_links.new(images[x - 1].outputs[0], col_mix_nodes[x - 1].inputs[1])
+                        else:
+                            scatter_source_links.new(images[x - 1].outputs[0], col_mix_nodes[x - 2].inputs[2])
+                            scatter_source_links.new(col_mix_nodes[x - 2].outputs[0], col_mix_nodes[x - 1].inputs[1])
+                    else: 
+                        scatter_source_links.new(images[0].outputs[0], scatter_source_nodes["Color Result"].inputs[0])
+                scatter_source_groups = [x for x in scatter_nodes if x.label == "Scatter Source"]
+                for x in scatter_source_groups:
+                    x.node_tree = scatter_source.node_tree
+                nodes.remove(scatter_source)
+
             else:
                 # create scatter source
                 scatter_source = nodes.new("ShaderNodeGroup")
@@ -336,6 +402,7 @@ class NODE_OT_scatter(Operator):
                 scatter_source.label = "Scatter Source"
                 # populate images      
                 scatter_source_nodes = scatter_source.node_tree.nodes
+                scatter_source_links = scatter_source.node_tree.links
                 images = [scatter_source_nodes.new("ShaderNodeTexImage") for x in textures]
                 multiply_nodes = []
                 greater_nodes = []
@@ -367,7 +434,6 @@ class NODE_OT_scatter(Operator):
                         alpha_mix.hide = True
                         alpha_mix_nodes.append(alpha_mix)
                 # connect the scatter source nodes
-                scatter_source_links = scatter_source.node_tree.links
                 for x in range(len(images)):
                     scatter_source_nodes["Number of Images"].outputs[0].default_value = x + 1
                     scatter_source_links.new(scatter_source_nodes["Group Input"].outputs[0], images[x].inputs[0])
@@ -390,18 +456,21 @@ class NODE_OT_scatter(Operator):
                         scatter_source_links.new(images[-1].outputs[1], alpha_mix_nodes[-1].inputs[2])
                         scatter_source_links.new(col_mix_nodes[-1].outputs[0], scatter_source_nodes["Color Result"].inputs[0])
                         scatter_source_links.new(alpha_mix_nodes[-1].outputs[0], scatter_source_nodes["Alpha Result"].inputs[0])
-                    elif x == 0:
+                    else:
                         scatter_source_links.new(images[0].outputs[0], scatter_source_nodes["Color Result"].inputs[0])
                         scatter_source_links.new(images[0].outputs[1], scatter_source_nodes["Alpha Result"].inputs[0])
+                
                 scatter_source_groups = [x for x in scatter_nodes if x.label == "Scatter Source"]
                 for x in scatter_source_groups:
                     x.node_tree = scatter_source.node_tree
                 nodes.remove(scatter_source)
+            
             # remove optional components 
             if self.use_random_col == False:
                 random_col_nodes = [x for x in scatter_nodes if (x.parent and "Randomize HSV" in x.parent.name) or "Randomize HSV" in x.name]
                 for node in random_col_nodes:
                     scatter_nodes.remove(node)
+                scatter_nodes.remove(scatter_nodes['Group Input Random Col'])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Hue"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Saturation"])
                 scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs["Random Value"])

@@ -23,15 +23,17 @@ bl_info = {
     "category": "Node",
 }
 
-from . import voronoi_scattering, unscatter
+from . import voronoi_scattering, unscatter, noise_blending
 
 def register():
     voronoi_scattering.register()
     unscatter.register()
+    noise_blending.register()
 
 def unregister():
     voronoi_scattering.unregister()
     unscatter.unregister()
+    noise_blending.unregister()
 
 if __name__ == "__main__":
     register()
