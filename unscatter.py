@@ -2,6 +2,16 @@ import bpy
 from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 
+def get_scatter_nodes(selected_nodes):
+    if selected_nodes:
+        group_nodes = [x for x in selected_nodes[0].id_data.nodes if x.select and x.type == 'GROUP']
+        def has_scatter_sources(node):
+            scatter_sources = [x for x in node.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
+            return scatter_sources
+        return [x for x in group_nodes if has_scatter_sources(x)]
+    else:
+        return False
+
 class NODE_OT_unscatter(Operator):
     bl_label = "Un-Scatter"
     bl_idname = "node.unscatter"
@@ -45,15 +55,7 @@ class NODE_OT_unscatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.selected_nodes:
-            def has_scatter_sources(node):
-                scatter_sources = [x for x in node.node_tree.nodes if x.label == 'Scatter Source']
-                return scatter_sources
-            selected_nodes = context.selected_nodes
-            nodes = selected_nodes[0].id_data.nodes
-            return [x for x in nodes if (x.select and x.type == 'GROUP' and has_scatter_sources(x))]
-        else:
-            return False
+        return get_scatter_nodes(context.selected_nodes)
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -61,24 +63,21 @@ class NODE_OT_unscatter(Operator):
     def execute(self, context):
         selected_nodes = context.selected_nodes
         nodes = selected_nodes[0].id_data.nodes
-        
-        def has_scatter_sources(node):
-            scatter_sources = [x for x in node.node_tree.nodes if x.label == 'Scatter Source']
-            return scatter_sources
-        selected_nodes = [x for x in nodes if (x.select and x.type == 'GROUP' and has_scatter_sources(x))]
+        selected_nodes = get_scatter_nodes(context.selected_nodes)
 
         for scatterNode in selected_nodes:
-            scatter_sources = [x for x in scatterNode.node_tree.nodes if x.label == "Scatter Source"]
-            scatter_source = scatter_sources[0]
-            images = [x for x in scatter_source.node_tree.nodes if x.type == "TEX_IMAGE"]
-            for i in range(len(images)):
-                image = nodes.new("ShaderNodeTexImage")
-                image.image = images[i].image
-                image.image.colorspace_settings.name = images[i].image.colorspace_settings.name
-                image.projection = self.projection
-                image.interpolation = self.interpolation
-                image.extension = self.extension
-                image.location = [scatterNode.location[0], scatterNode.location[1] - (255 * i)] 
+            scatter_sources = [x for x in scatterNode.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
+            for x in range(len(scatter_sources)):
+                scatter_source = scatter_sources[x]
+                images = [x for x in scatter_source.node_tree.nodes if x.type == "TEX_IMAGE"]
+                for i in range(len(images)):
+                    image = nodes.new("ShaderNodeTexImage")
+                    image.image = images[i].image
+                    image.image.colorspace_settings.name = images[i].image.colorspace_settings.name
+                    image.projection = self.projection
+                    image.interpolation = self.interpolation
+                    image.extension = self.extension
+                    image.location = [scatterNode.location[0], scatterNode.location[1] - (255 * i) - (255 * x)] 
             nodes.remove(scatterNode)
         
         return {'FINISHED'}
