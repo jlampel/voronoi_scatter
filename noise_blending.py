@@ -1,9 +1,12 @@
 import bpy
 import os
 from bpy.types import (Operator)
+from bpy.ops import (Error)
 from . import unscatter
+from pprint import pprint
 
-def noise_blend(context, nodes_to_mix, sockets_to_mix, should_combine_scatters):
+
+def noise_blend(context, nodes_to_mix, sockets_to_mix, mix_by):
     nodes = nodes_to_mix[0].id_data.nodes
     links = nodes_to_mix[0].id_data.links
     textures = nodes_to_mix
@@ -11,16 +14,52 @@ def noise_blend(context, nodes_to_mix, sockets_to_mix, should_combine_scatters):
     def order_nodes():
         textures_sorted = sorted(textures, key=lambda x: -x.location[1])
         return textures_sorted
-        
-    def get_outputs():
-        input_names = []
-        mix_channels = []
-        for i in range(len(textures)):
-            for output in textures[i].outputs:
-                if (output.name not in input_names) and (output.enabled == True):
-                    input_names.append(output.name)
-                    mix_channels.append(output)
-        return mix_channels
+
+    def get_sockets():
+        if mix_by == "name":
+            mix_sockets = {}
+            for texture_idx, texture in enumerate(textures):
+                enabled_sockets = [x for x in texture.outputs if x.enabled]
+                for output_idx, output in enumerate(enabled_sockets):
+                    if not mix_sockets.get(output.name):
+                        mix_sockets[output.name] = []
+                    mix_sockets[output.name].append(output)
+            return mix_sockets
+        elif mix_by == "common_name":
+            mix_sockets = {}
+            for texture_idx, texture in enumerate(textures):
+                enabled_sockets = [x for x in texture.outputs if x.enabled]
+                for output_idx, output in enumerate(enabled_sockets):
+                    matches_all = True
+                    for tex in textures:
+                        if output.name not in tex.outputs:
+                            matches_all = False
+                    if matches_all:
+                        if not mix_sockets.get(output.name):
+                            mix_sockets[output.name] = []
+                        mix_sockets[output.name].append(output)
+            return mix_sockets
+                    
+        elif mix_by == "order":
+            mix_sockets = {}
+            for texture_idx, texture in enumerate(textures):
+                enabled_sockets = [x for x in textures[texture_idx].outputs if x.enabled]
+                for output_idx, output in enumerate(enabled_sockets):
+                    channel_name = "Col" + str(output_idx) + " Tex"
+                    if channel_name not in mix_sockets:
+                        mix_sockets[channel_name] = []
+                    mix_sockets[channel_name].append(output)
+            return mix_sockets
+        elif mix_by == "first":
+            mix_sockets = {"Color": []}
+            for texture_idx, texture in enumerate(textures):
+                enabled_sockets = [x for x in texture.outputs if x.enabled]
+                mix_sockets["Color"].append(enabled_sockets[0])
+            return mix_sockets
+        elif mix_by == "custom":
+            return sockets_to_mix
+        else:
+            bpy.ops.error.message('INVOKE_DEFAULT', type = "Error", message = "Mixing method not recognized")
 
     def create_group():
         # Add a node group
@@ -78,47 +117,54 @@ def noise_blend(context, nodes_to_mix, sockets_to_mix, should_combine_scatters):
         group_output.location = [1000, 0]
         return blending_node
         
-    def create_inputs(blending_node, mix_channels):
-        mix_inputs = []
-        for t in range(len(textures)):
-            tex = textures[t]
-            enabled_sockets = [x.name for x in tex.outputs if x.enabled]
-            for output in mix_channels:
-                tex_input = blending_node.node_tree.inputs.new("NodeSocketColor", output.name + str(t + 1))
-                mix_inputs.append(tex_input)
-                if output.name in enabled_sockets:
-                    links.new(tex.outputs[output.name], blending_node.inputs[tex_input.name])
+    def create_inputs(blending_node, sockets):
+        mix_inputs = {}
+        max_sockets = max([len(sockets[x]) for x in sockets.keys()])
+        for channel in sockets.keys():
+            mix_inputs[channel] = []
+        for socket_idx in range(max_sockets):
+            for channel in sockets.keys():
+                new_input = blending_node.node_tree.inputs.new("NodeSocketColor", channel + str(socket_idx + 1))
+                mix_inputs[channel].append(new_input)
         return mix_inputs
     
-    def create_outputs(blending_node, mix_channels):
-        for output in mix_channels:
-            node_output = blending_node.node_tree.outputs.new("NodeSocketColor", output.name)
+    def link_inputs(textures, blending_node, sockets, mix_inputs):
+        for tex_idx, tex in enumerate(textures):
+            for output in tex.outputs:
+                if output.enabled and sockets.get(output.name):
+                    links.new(output, blending_node.inputs[output.name + str(tex_idx + 1)])
 
-    def mix_colors(blending_node, mix_channels, mix_inputs):
+    def create_outputs(blending_node, sockets):
+        for channel in sockets.keys():
+            node_output = blending_node.node_tree.outputs.new("NodeSocketColor", channel)
+
+    def mix_colors(blending_node, mix_inputs):
         blending_nodes = blending_node.node_tree.nodes
         blending_links = blending_node.node_tree.links
-        for i in range(len(mix_channels)):
+        channels = [x for x in mix_inputs.keys()]
+        for channel_idx, channel_name in enumerate(channels):
+            channel = mix_inputs[channel_name]
             mix_nodes = []
-            for t in range(len(textures)):
-                input_number = (t * len(mix_channels)) + i
-                next_number = ((t + 1) * len(mix_channels)) + i
-                if t < len(textures) - 1:
+            for socket_idx, socket in enumerate(channel):
+                if socket_idx < len(channel) - 1:
                     greater = blending_nodes.new("ShaderNodeMath")
-                    greater.location = [t * 200, 175 + (i * -500) ]
+                    greater.location = [socket_idx * 200, 175 + (channel_idx * -500) ]
                     greater.operation = 'GREATER_THAN'
-                    greater.inputs[1].default_value = (1 / len(textures)) * (t + 1)
+                    greater.inputs[1].default_value = (1 / len(textures)) * (socket_idx + 1)
                     mix = blending_nodes.new("ShaderNodeMixRGB")
                     mix_nodes.append(mix)
-                    mix.location = [t * 200, i * -500]
+                    mix.location = [socket_idx * 200, channel_idx * -500]
                     blending_links.new(blending_nodes['Separate HSV'].outputs[0], greater.inputs[0])
                     blending_links.new(greater.outputs[0], mix.inputs[0])
-                if t == 0:
-                    blending_links.new(blending_nodes['Group Input'].outputs[mix_inputs[input_number].name], mix.inputs[1])
-                    blending_links.new(blending_nodes['Group Input'].outputs[mix_inputs[next_number].name], mix.inputs[2])
-                if t > 0 and t < len(textures) - 1:
-                    blending_links.new(mix_nodes[t - 1].outputs[0], mix_nodes[t].inputs[1])
-                    blending_links.new(blending_nodes['Group Input'].outputs[mix_inputs[next_number].name], mix.inputs[2])
-            blending_links.new(mix_nodes[-1].outputs[0], blending_nodes['Group Output'].inputs[i])
+                if socket_idx == 0:
+                    next_socket = channel[socket_idx + 1]
+                    blending_links.new(blending_nodes['Group Input'].outputs[socket.name], mix.inputs[1])
+                    blending_links.new(blending_nodes['Group Input'].outputs[next_socket.name], mix.inputs[2])
+                if socket_idx > 0 and socket_idx < len(textures) - 1:
+                    next_socket = channel[socket_idx + 1]
+                    blending_links.new(mix_nodes[socket_idx - 1].outputs[0], mix_nodes[socket_idx].inputs[1])
+                    blending_links.new(blending_nodes['Group Input'].outputs[next_socket.name], mix.inputs[2])
+            blending_links.new(mix_nodes[-1].outputs[0], blending_nodes['Group Output'].inputs[channel_idx])
 
     def create_coordinates(blending_node, textures):
         has_coordinates = False
@@ -134,28 +180,15 @@ def noise_blend(context, nodes_to_mix, sockets_to_mix, should_combine_scatters):
             coordinates.location = [blending_node.location[0] - 200, blending_node.location[1]]
             links.new(coordinates.outputs['UV'], blending_node.inputs['Vector'])
 
-    def combine_scatter_nodes(context):
-        if should_combine_scatters and unscatter.has_scatter_nodes: 
-            scatter_nodes = unscatter.has_scatter_nodes(context.selected_nodes)
-            master_node = scatter_nodes[0]
-            for scatter_node in scatter_nodes:
-                scatter_sources = [x for x in scatter_node.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
-                if scatter_node != master_node:
-                    for source in scatter_sources:
-                        new_source = master_node.node_tree.nodes.new('ShaderNodeGroup')
-                        new_source.node_tree = source.node_tree
-            # for all other scatter nodes, add their scatter sources to the master node's nodetree
-            # connect all the scatter sources
-            # perform a noise blend on the scatter sources 
-
     textures = order_nodes()
-    mix_channels = get_outputs()
+    sockets = get_sockets()
     blending_node = create_group()
-    mix_inputs = create_inputs(blending_node, mix_channels)
-    create_outputs(blending_node, mix_channels)
-    mix_colors(blending_node, mix_channels, mix_inputs)
+    mix_inputs = create_inputs(blending_node, sockets)
+    link_inputs(textures, blending_node, sockets, mix_inputs)
+    create_outputs(blending_node, sockets)
+    mix_colors(blending_node, mix_inputs)
     create_coordinates(blending_node, textures)
-    combine_scatter_nodes(context)
+
 
 class NODE_OT_noise_blend(Operator):
     bl_label = "Noise Blend"
@@ -165,15 +198,17 @@ class NODE_OT_noise_blend(Operator):
     bl_region_type = "UI"
     bl_options = {'REGISTER', 'UNDO'}
 
-    sockets_to_mix: bpy.props.EnumProperty(
-        name = "Mix Outputs",
+    mix_by: bpy.props.EnumProperty(
+        name = "Mix Outputs By",
         description = "Which node outputs get mixed together by the noise",
         items = [
-            ("order", "By Order", "Mix outputs together by their socket number"),
-            ("name", "By Name", "Mix outputs together based on their name"),
-            ("first", "Only First", "Only mix the first outputs together")
+            ("order", "Order", "Mix outputs together by their socket number"),
+            ("name", "All Names", "Mix outputs together based on their name and create a blank input if the node doesn't have an output of that name"),
+            ("common_name", "Only Common Names", "Mix outputs together based on their name if all nodes have an output of that name"),
+            ("first", "Only First", "Only mix the first outputs together"),
+            # can also be "custom", but that should only be used programatically
         ],
-        default = "name"
+        default = "common_name"
     )
 
     should_combine_scatters: bpy.props.BoolProperty(
@@ -192,15 +227,14 @@ class NODE_OT_noise_blend(Operator):
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
-        # layout.prop(self, "sockets_to_mix")
-        layout.prop(self, "should_combine_scatters")
+        layout.prop(self, "mix_by")
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         selected_nodes = context.selected_nodes
-        noise_blend(context, selected_nodes, self.sockets_to_mix, self.should_combine_scatters)
+        noise_blend(context, selected_nodes, None, self.mix_by)
         return {'FINISHED'}
 
 def draw_menu(self, context):
