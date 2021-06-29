@@ -1,7 +1,8 @@
 import bpy
 import os
 import re
-from bpy.types import (Operator)
+from pprint import pprint
+from bpy.types import (Object, Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 
 from . import noise_blending
@@ -603,26 +604,42 @@ class NODE_OT_scatter(Operator):
             master_node_nodes = master_node.node_tree.nodes
             nodes_to_mix = []
             sockets_to_mix = {}
-            for scatter_node_index in range(len(scatter_nodes)):
-                scatter_node = scatter_nodes[scatter_node_index]
+            for scatter_node_idx, scatter_node in enumerate(scatter_nodes):
                 scatter_sources = [x for x in scatter_node.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
-                for source_index in range(len(scatter_sources)):
-                    source = scatter_sources[source_index]
-                    nodes_to_mix.append(source)
+                for source_idx, source in enumerate(scatter_sources):
                     if scatter_node != master_node:
                         new_source = master_node.node_tree.nodes.new('ShaderNodeGroup')
+                        nodes_to_mix.append(new_source)
                         new_source.node_tree = source.node_tree
                         new_source.label = source.label
-                        new_source.location = [-650, 85 - (500 * scatter_node_index) - (250 * source_index) - (100 * len(scatter_sources))]
+                        new_source.node_tree.outputs['Color'].name = source.label
+                        new_source.location = [-650, 85 - (500 * scatter_node_idx) - (250 * source_idx) - (100 * len(scatter_sources))]
                         master_node_links.new(master_node_nodes["Scatter Coordinates"].outputs["Vector"], new_source.inputs["Vector"])
                         master_node_links.new(master_node_nodes["Scatter Coordinates"].outputs["Color"], new_source.inputs["Random Color"])
-                    if source.label not in sockets_to_mix.keys():
+                    else:
+                        new_source = source
+                        nodes_to_mix.append(source)
+                        source.node_tree.outputs['Color'].name = source.label
+                    if not sockets_to_mix.get(source.label):
                         sockets_to_mix[source.label] = []
-                    sockets_to_mix[source.label].append(source.outputs[0])
+                    sockets_to_mix[source.label].append(new_source.outputs[0])
 
             # TODO add color randomization and update sockets to mix 
-
-            noise_blend(context, nodes_to_mix, sockets_to_mix, 'custom')
+    
+            blending_node = noise_blend(context, nodes_to_mix, sockets_to_mix, 'custom')
+            blending_node.location[0] = 250
+            for output in blending_node.outputs:
+                master_node_links.new(output, master_node_nodes['Group Output'].inputs[output.name])
+            input_names = ['Noise Scale', 'Noise Detail', 'Noise Roughness', 'Noise Blur']
+            input_count = len(master_node.inputs)
+            for input_name in input_names:
+                master_node_links.new(master_node_nodes['Group Input'].outputs[-1], blending_node.inputs[input_name])
+                master_node.node_tree.inputs[input_name].name = input_name.replace('Noise', 'Blending')
+            for input_idx in range(len(input_names)):
+                master_node.node_tree.inputs.move(input_count + input_idx, 1 + input_idx)
+            
+            master_node_links.new(master_node_nodes['Warped Coordinates'].outputs[0], blending_node.inputs['Vector'])
+            
 
             # TODO ungroup nodes for less mess
 
