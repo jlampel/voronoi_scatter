@@ -12,5 +12,5 @@ You can also find the addon on the Blender Market:
 
 https://blendermarket.com/products/scattershot---procedural-image-texture-scattering--tiling-with-voronoi
 
-This repository only stores the code for the addon and is used for tracking bugs and feature requests. In order for it to append the correct nodes to your project, it needs the accomanying .blend files that are included with the downloads in the links above. 
+This repository only stores the code for the addon and is used for tracking bugs and feature requests. In order for it to append the correct nodes to your project, it needs the accompanying .blend files that are included with the downloads in the links above. 
 
