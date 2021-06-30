@@ -219,6 +219,8 @@ class NODE_OT_scatter(Operator):
                     for texture in unsorted_textures:
                         if create_friendly_name(texture.image.name) == map:
                             sorted_textures.append(texture)
+                            if map == 'Normal':
+                                self.report({'WARNING'}, "Rotating a normal map is not advised because the light will bounce in the wrong direction. Try using a bump map if rotation is needed")
                 for texture in sorted_textures:
                     unsorted_textures.remove(texture)
                 for texture in unsorted_textures:
@@ -612,6 +614,8 @@ class NODE_OT_scatter(Operator):
             for scatter_node_idx, scatter_node in enumerate(scatter_nodes):
                 scatter_sources = [x for x in scatter_node.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
                 for source_idx, source in enumerate(scatter_sources):
+                    if self.layering == 'blended':
+                        source.label = 'Image'
                     if not sockets_to_mix.get(source.label):
                         sockets_to_mix[source.label] = []
                     if scatter_node != master_node:
@@ -634,6 +638,7 @@ class NODE_OT_scatter(Operator):
                                 or texture_type == 'Alpha'
                             ): 
                                 randomize_node = append_node(master_node_nodes, 'SS - Randomize Value')
+                                randomize_node.name = 'Randomize ' + texture_type
                                 randomize_node.location = [new_source.location[0] + 250, new_source.location[1]]
                                 randomize_node.inputs['Random Seed'].default_value = scatter_node_idx + 1
                                 master_node_links.new(new_source.outputs[0], randomize_node.inputs[0])
@@ -648,6 +653,7 @@ class NODE_OT_scatter(Operator):
                                 sockets_to_mix[new_source.label].append(new_source.outputs[0])
                             else: 
                                 randomize_node = master_node_nodes.new("ShaderNodeGroup")
+                                randomize_node.name = 'Randomize ' + texture_type
                                 randomize_node.node_tree = bpy.data.node_groups['SS - Randomize HSV']
                                 randomize_node.location = [new_source.location[0] + 250, new_source.location[1]]
                                 randomize_node.inputs['Random Seed'].default_value = scatter_node_idx + 1
@@ -673,7 +679,10 @@ class NODE_OT_scatter(Operator):
                             or texture_type == 'AO'
                             or texture_type == 'Emission'
                         )):
-                            randomize_node = master_node_nodes['Randomize ' + texture_type]
+                            if self.layering == 'blended_stacked':
+                                randomize_node = master_node_nodes['Randomize ' + texture_type]
+                            else:
+                                randomize_node = master_node_nodes['SS - Randomize HSV']
                             sockets_to_mix[new_source.label].append(randomize_node.outputs[0])
                         else:
                             sockets_to_mix[new_source.label].append(new_source.outputs[0])
