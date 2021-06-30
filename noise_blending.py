@@ -6,7 +6,7 @@ from . import unscatter
 from pprint import pprint
 
 
-def noise_blend(context, nodes_to_mix, sockets_to_mix, mix_by):
+def noise_blend(self, context, nodes_to_mix, sockets_to_mix, mix_by):
     nodes = nodes_to_mix[0].id_data.nodes
     links = nodes_to_mix[0].id_data.links
     textures = nodes_to_mix
@@ -138,34 +138,38 @@ def noise_blend(context, nodes_to_mix, sockets_to_mix, mix_by):
         for channel in sockets.keys():
             node_output = blending_node.node_tree.outputs.new("NodeSocketColor", channel)
 
-    def mix_colors(blending_node, mix_inputs):
+    def mix_colors(blending_node, mix_inputs, sockets):
         blending_nodes = blending_node.node_tree.nodes
         blending_links = blending_node.node_tree.links
         channels = [x for x in mix_inputs.keys()]
         for channel_idx, channel_name in enumerate(channels):
             channel = mix_inputs[channel_name]
             mix_nodes = []
-            number_of_sockets = len(mix_inputs[channel_name])
-            for socket_idx, socket in enumerate(channel):
-                if socket_idx < len(channel) - 1:
-                    greater = blending_nodes.new("ShaderNodeMath")
-                    greater.location = [socket_idx * 200, 175 + (channel_idx * -500) ]
-                    greater.operation = 'GREATER_THAN'
-                    greater.inputs[1].default_value = (1 / number_of_sockets) * (socket_idx + 1)
-                    mix = blending_nodes.new("ShaderNodeMixRGB")
-                    mix_nodes.append(mix)
-                    mix.location = [socket_idx * 200, channel_idx * -500]
-                    blending_links.new(blending_nodes['Separate HSV'].outputs[0], greater.inputs[0])
-                    blending_links.new(greater.outputs[0], mix.inputs[0])
-                if socket_idx == 0:
-                    next_socket = channel[socket_idx + 1]
-                    blending_links.new(blending_nodes['Group Input'].outputs[socket.name], mix.inputs[1])
-                    blending_links.new(blending_nodes['Group Input'].outputs[next_socket.name], mix.inputs[2])
-                if socket_idx > 0 and socket_idx < number_of_sockets - 1:
-                    next_socket = channel[socket_idx + 1]
-                    blending_links.new(mix_nodes[socket_idx - 1].outputs[0], mix_nodes[socket_idx].inputs[1])
-                    blending_links.new(blending_nodes['Group Input'].outputs[next_socket.name], mix.inputs[2])
-            blending_links.new(mix_nodes[-1].outputs[0], blending_nodes['Group Output'].inputs[channel_idx])
+            number_of_sockets = len(sockets[channel_name])
+            if number_of_sockets == 1: 
+                self.report({"WARNING"}, "Skipping noise blending for %s - more than one texture is needed per PBR channel" % channel_name)
+                blending_links.new(blending_nodes['Group Input'].outputs[channel[0].name], blending_nodes['Group Output'].inputs[channel_name])
+            else:
+                for socket_idx, socket in enumerate(channel):
+                    if socket_idx < len(channel) - 1:
+                        greater = blending_nodes.new("ShaderNodeMath")
+                        greater.location = [socket_idx * 200, 175 + (channel_idx * -500) ]
+                        greater.operation = 'GREATER_THAN'
+                        greater.inputs[1].default_value = (1 / number_of_sockets) * (socket_idx + 1)
+                        mix = blending_nodes.new("ShaderNodeMixRGB")
+                        mix_nodes.append(mix)
+                        mix.location = [socket_idx * 200, channel_idx * -500]
+                        blending_links.new(blending_nodes['Separate HSV'].outputs[0], greater.inputs[0])
+                        blending_links.new(greater.outputs[0], mix.inputs[0])
+                    if socket_idx == 0:
+                        next_socket = channel[socket_idx + 1]
+                        blending_links.new(blending_nodes['Group Input'].outputs[socket.name], mix.inputs[1])
+                        blending_links.new(blending_nodes['Group Input'].outputs[next_socket.name], mix.inputs[2])
+                    elif socket_idx > 0 and socket_idx < number_of_sockets - 1:
+                        next_socket = channel[socket_idx + 1]
+                        blending_links.new(mix_nodes[socket_idx - 1].outputs[0], mix_nodes[socket_idx].inputs[1])
+                        blending_links.new(blending_nodes['Group Input'].outputs[next_socket.name], mix.inputs[2])
+                blending_links.new(mix_nodes[-1].outputs[0], blending_nodes['Group Output'].inputs[channel_idx])
 
     def create_coordinates(blending_node, textures):
         has_coordinates = False
@@ -187,7 +191,7 @@ def noise_blend(context, nodes_to_mix, sockets_to_mix, mix_by):
     mix_inputs = create_inputs(blending_node, sockets)
     link_inputs(textures, blending_node, sockets, mix_inputs)
     create_outputs(blending_node, sockets)
-    mix_colors(blending_node, mix_inputs)
+    mix_colors(blending_node, mix_inputs, sockets)
     create_coordinates(blending_node, textures)
     return blending_node
 
@@ -236,7 +240,7 @@ class NODE_OT_noise_blend(Operator):
 
     def execute(self, context):
         selected_nodes = context.selected_nodes
-        noise_blend(context, selected_nodes, None, self.mix_by)
+        noise_blend(self, context, selected_nodes, None, self.mix_by)
         return {'FINISHED'}
 
 def draw_menu(self, context):

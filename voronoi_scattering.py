@@ -124,7 +124,7 @@ class NODE_OT_scatter(Operator):
             ("layered", "Layered Alpha", "Creates Interspersed Alpha scatter nodes for each texture and chains them all together, which allows for very a basic overlap that is faster than using Overlapping"),
             ("overlapping", "Overlapping Alpha", "All the options of Simple Alpha with the additional benefit of enabling neighboring cells to overlap each other. This increases shader compilation time since 9 cells are calculated rather than 1")
         ],
-        default = "blended_stacked",
+        default = "simple",
     )
     use_edge_blur: bpy.props.BoolProperty(
         name = "Enable Edge Blur",
@@ -144,7 +144,7 @@ class NODE_OT_scatter(Operator):
     use_random_col: bpy.props.BoolProperty(
         name = "Enable Random Color",
         description = "Adds easy controls for varying the color of each instance",
-        default = True,
+        default = False,
     )
 
     def draw(self, context):
@@ -156,7 +156,9 @@ class NODE_OT_scatter(Operator):
         layout.prop(self, "use_edge_blur")
         layout.prop(self, "use_edge_warp")
         layout.prop(self, "use_texture_warp")
-        layout.prop(self, "use_random_col")
+        random_col_row = layout.row()
+        random_col_row.enabled = (self.layering != "coordinates")
+        random_col_row.prop(self, "use_random_col")
 
     @classmethod
     def poll(cls, context):
@@ -655,6 +657,8 @@ class NODE_OT_scatter(Operator):
                                 master_node_links.new(master_node_nodes['Group Input'].outputs['Random Saturation'], randomize_node.inputs['Random Saturation'])
                                 master_node_links.new(master_node_nodes['Group Input'].outputs['Random Value'], randomize_node.inputs['Random Value'])
                                 sockets_to_mix[new_source.label].append(randomize_node.outputs[0])
+                        else:
+                            sockets_to_mix[new_source.label].append(new_source.outputs[0])
                     else:
                         new_source = source
                         nodes_to_mix.append(source)
@@ -673,9 +677,13 @@ class NODE_OT_scatter(Operator):
                             sockets_to_mix[new_source.label].append(randomize_node.outputs[0])
                         else:
                             sockets_to_mix[new_source.label].append(new_source.outputs[0])
-    
-            blending_node = noise_blend(context, nodes_to_mix, sockets_to_mix, 'custom')
+
+            blending_node = noise_blend(self, context, nodes_to_mix, sockets_to_mix, 'custom')
             blending_node.location[0] = 250
+            output_names = [x.name for x in master_node_nodes['Group Output'].inputs]
+            for channel_name in sockets_to_mix.keys():
+                if channel_name not in output_names:
+                    master_node.node_tree.outputs.new("NodeSocketColor", channel_name)
             for output in blending_node.outputs:
                 master_node_links.new(output, master_node_nodes['Group Output'].inputs[output.name])
             input_names = ['Noise Scale', 'Noise Detail', 'Noise Roughness', 'Noise Blur']
@@ -709,7 +717,10 @@ class NODE_OT_scatter(Operator):
                 node_sets = group_similar_textures(selected_nodes)
                 scatter_nodes = [create_scatter_node(x) for x in node_sets]
                 scatter_node = create_blended_node(scatter_nodes)
-                scatter_node.node_tree.name = 'SS - Scatter Blended'
+                if scatter_node:
+                    scatter_node.node_tree.name = 'SS - Scatter Blended'
+                else:
+                    return {'CANCELLED'}
             elif self.layering == 'simple_alpha':
                 scatter_node = create_scatter_node(selected_nodes)
                 scatter_node.inputs["Texture Scale"].default_value = 2
@@ -721,8 +732,8 @@ class NODE_OT_scatter(Operator):
                 scatter_node.inputs["Random Cell Shape"].default_value = 1
                 scatter_node.inputs["Random Rotation"].default_value = 1
             else:
-                bpy.ops.error.message('INVOKE_DEFAULT', type = "Error", message = "Scatter method not recognized")
-
+                self.report({"ERROR"}, "Cancelling Operation - Scatter method not recognized")
+                return {'CANCELLED'}
             for texture in selected_nodes: nodes.remove(texture)
 
         return {'FINISHED'}
