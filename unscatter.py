@@ -67,17 +67,23 @@ class NODE_OT_unscatter(Operator):
 
         for scatterNode in selected_nodes:
             scatter_sources = [x for x in scatterNode.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
+            images_list = []
+            image_count = 0
+            columns = 0
             for x in range(len(scatter_sources)):
                 scatter_source = scatter_sources[x]
                 images = [x for x in scatter_source.node_tree.nodes if x.type == "TEX_IMAGE"]
                 for i in range(len(images)):
+                    image_count += 1
                     image = nodes.new("ShaderNodeTexImage")
+                    images_list.append(image)
                     image.image = images[i].image
                     image.image.colorspace_settings.name = images[i].image.colorspace_settings.name
                     image.projection = self.projection
                     image.interpolation = self.interpolation
                     image.extension = self.extension
-                    image.location = [scatterNode.location[0], scatterNode.location[1] - (255 * i) - (255 * x)] 
+                    image.location = [scatterNode.location[0] + (250 * columns), scatterNode.location[1] - (255 * (image_count % 4))] 
+                    if image_count % 4 == 0: columns += 1
             nodes.remove(scatterNode)
         
         return {'FINISHED'}

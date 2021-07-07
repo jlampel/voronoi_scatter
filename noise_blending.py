@@ -1,12 +1,9 @@
 import bpy
-import os
 from bpy.types import (Operator)
-from bpy.ops import (Error)
-from . import unscatter
 from pprint import pprint
 
 
-def noise_blend(self, context, nodes_to_mix, sockets_to_mix, mix_by):
+def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
     nodes = nodes_to_mix[0].id_data.nodes
     links = nodes_to_mix[0].id_data.links
     textures = nodes_to_mix
@@ -59,7 +56,7 @@ def noise_blend(self, context, nodes_to_mix, sockets_to_mix, mix_by):
         elif mix_by == "custom":
             return sockets_to_mix
         else:
-            bpy.ops.error.message('INVOKE_DEFAULT', type = "Error", message = "Mixing method not recognized")
+            self.report({'ERROR'}, "Mixing method not recognized")
 
     def create_group():
         # Add a node group
@@ -177,8 +174,14 @@ def noise_blend(self, context, nodes_to_mix, sockets_to_mix, mix_by):
             socket_names = [x.name for x in tex.inputs]
             if 'Vector' in socket_names and tex.inputs['Vector'].links:
                 from_socket = tex.inputs['Vector'].links[0].from_socket
-                links.new(from_socket, blending_node.inputs['Vector'])
-                has_coordinates = True
+                from_node = from_socket.node
+                if from_node.label == 'Scatter Mapping':
+                    if from_node.inputs['Vector'].links:
+                        links.new(from_node.inputs['Vector'].links[0].from_socket, blending_node.inputs['Vector'])
+                        has_coordinates = True
+                else:
+                    links.new(from_socket, blending_node.inputs['Vector'])
+                    has_coordinates = True
                 break
         if not has_coordinates:
             coordinates = nodes.new("ShaderNodeTexCoord")
@@ -240,7 +243,7 @@ class NODE_OT_noise_blend(Operator):
 
     def execute(self, context):
         selected_nodes = context.selected_nodes
-        noise_blend(self, context, selected_nodes, None, self.mix_by)
+        noise_blend(self, selected_nodes, None, self.mix_by)
         return {'FINISHED'}
 
 def draw_menu(self, context):
