@@ -587,7 +587,14 @@ def create_layered_node(self, selected_nodes):
     return master_node
     
 def setup_defaults(self, scatter_node):
-    pass
+    if defaults.layering.get('common'):
+        for default in defaults.layering['common'].keys():
+            if default in [x.name for x in scatter_node.inputs]:
+                scatter_node.inputs[default].default_value = defaults.layering['common'][default]
+    if defaults.layering.get(self.layering):
+        for default in defaults.layering[self.layering].keys():
+            if default in [x.name for x in scatter_node.inputs]:
+                scatter_node.inputs[default].default_value = defaults.layering[self.layering][default]
 
 class NODE_OT_scatter(Operator):
     bl_label = "Voronoi Scatter"
@@ -684,12 +691,12 @@ class NODE_OT_scatter(Operator):
     def execute(self, context):
         selected_nodes = context.selected_nodes
         if self.layering == 'coordinates':
-            create_coordinates_node(self, selected_nodes)
+            scatter_node = create_coordinates_node(self, selected_nodes)
         elif self.layering == 'layered':
-            create_layered_node(self, selected_nodes)
+            scatter_node = create_layered_node(self, selected_nodes)
         else:
-            setup_scatter_node(self, selected_nodes)
-        setup_defaults(self)
+            scatter_node = setup_scatter_node(self, selected_nodes)
+        setup_defaults(self, scatter_node)
         return {'FINISHED'}
  
 def draw_menu(self, context):

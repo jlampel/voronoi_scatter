@@ -17,24 +17,45 @@ noise_blend = {
     'mix_by': 'common_name',
 }
 layering = {
+    'common': {
+        'Tri-Planar Blending': 0.15,
+        'Random Hue': 0.1,
+        'Random Saturation': 0.1,
+        'Random Value': 0.1,
+        'Random Rotation': 1,
+        'Random Scale': 0.25,
+        'Edge Warp': 0.5,
+        'Edge Warp Scale': 1,
+        'Edge Warp Detail': 3,
+        'Texture Warp': 0.5,
+        'Edge Blur': 0.25
+    },
     'coordinates': {
-
+        'Cell Scale': 2,
+        'Random Cell Shape': 1,
+        'Random Location': 1,
     },
     'simple': {
-
+        'Cell Scale': 2,
+        'Random Cell Shape': 1,
+        'Random Location': 1,
     },
     'blended': {
-
+        'Blending Scale': 1,
+        'Blending Detail': 6,
+        'Blending Roughness': 0.75,
+        'Blending Blur': 0.25,
+        'Cell Scale': 2,
+        'Random Cell Shape': 1,
+        'Random Location': 1,
     },
     'simple_alpha': {
         'Texture Scale': 2,
-        'Random Rotation': 1
     },
     'layered': {
         'Texture Scale': 2,
-        'Random Rotation': 1
     },
     'overlapping': {
-
+        'Texture Scale': 2,
     },
 }
