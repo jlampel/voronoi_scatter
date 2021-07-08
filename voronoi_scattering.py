@@ -3,12 +3,14 @@ from random import random
 from pprint import pprint
 from bpy.types import (Object, Operator)
 from bpy.props import (BoolProperty, EnumProperty)
+from . import defaults
 from . import noise_blending
 noise_blend = noise_blending.noise_blend
 from . import utilities
 append_node = utilities.append_node
 create_friendly_name = utilities.create_friendly_name
 create_sortable_name = utilities.create_sortable_name
+average_location = utilities.average_location
    
 def create_coordinates_node(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
@@ -36,6 +38,7 @@ def create_coordinates_node(self, selected_nodes):
         texture_coordinates.location = [scatter_node.location[0] - 400, scatter_node.location[1] - 235]
         links.new(texture_coordinates.outputs['Object'], tri_planar.inputs['Vector'])
         links.new(tri_planar.outputs['Vector'], scatter_node.inputs['Vector'])
+    return scatter_node
 
 def sort_textures(self, selected_nodes):
     if self.layering == 'overlapping':
@@ -52,8 +55,8 @@ def sort_textures(self, selected_nodes):
         'Glossiness': [], 
         'Emission': [], 
         'Alpha': [], 
-        'Bump': [], 
-        'Normal': []
+        'Normal': [],
+        'Bump': [],
     }
     for texture in textures:
         is_map = False
@@ -62,21 +65,18 @@ def sort_textures(self, selected_nodes):
             if map_type in sorted_textures.keys():
                 sorted_textures[map_type].append(texture)
                 is_map = True
-                if map_type == 'Normal':
-                    self.report({'WARNING'}, 'Rotating a normal map is not advised. The light will bounce in the wrong direction. Try using a bump map if rotation is needed')
         if not is_map:
             sorted_textures['Image'].append(texture)
     filtered_textures = {}
     for map_type in sorted_textures:
         if sorted_textures[map_type] != []:
             filtered_textures[map_type] = sorted_textures[map_type]
+    if filtered_textures.get('Normal'):
+        self.report({'WARNING'}, 
+            'Rotating a normal map is not advised. The light will bounce in the wrong direction.'+ 
+            'Try using a bump map if rotation is needed'
+        )
     return filtered_textures
-
-def average_location(selected_nodes):
-    return [
-        sum([x.location[0] for x in selected_nodes]) / len(selected_nodes),
-        sum([x.location[1] for x in selected_nodes]) / len(selected_nodes) + 150
-    ]
 
 def append_scatter_node(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
@@ -190,7 +190,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         links.new(nodes['Group Input'].outputs['Alpha Clip'], scatter_source.inputs['Alpha Clip'])
         if channel not in scatter_node.node_tree.outputs:
             scatter_node.node_tree.outputs.new("NodeSocketColor", channel)
-            links.new(scatter_source.outputs[0], nodes['Group Output'].inputs[channel])
+        links.new(scatter_source.outputs[0], nodes['Group Output'].inputs[channel])
 
     scatter_sources = {}
     for channel_idx, channel in enumerate(sorted_textures.keys()):
@@ -370,7 +370,7 @@ def cleanup_layering(self, scatter_node, scatter_sources):
         nodes.remove(nodes['Scatter Source'])
         scatter_source = scatter_sources[[*scatter_sources][0]][0]
         links.new(scatter_source.outputs[1], nodes['Group Output'].inputs['Random Color'])
-        if self.use_pbr:
+        if self.use_pbr and 'Image' not in scatter_sources.keys():
             scatter_node.node_tree.outputs.remove(scatter_node.node_tree.outputs['Image'])
             outputs = scatter_node.node_tree.outputs
             output_count = len(outputs)
@@ -437,28 +437,31 @@ def connect_shader(self, selected_nodes, scatter_node):
                         links.new(scatter_node.outputs[0], nodes['Emission Viewer'].inputs[0])
         elif node.type == 'BSDF_PRINCIPLED':
             if self.use_pbr:
+                nrm_node = None
                 for output in scatter_node.outputs:
-                    if output.name == 'Albedo':
-                        links.new(scatter_node.outputs['Albedo'], node.inputs['Base Color'])
+                    if output.name == 'Albedo' or output.name == 'Image':
+                        links.new(output, node.inputs['Base Color'])
                     elif output.name == 'Metallic':
-                        links.new(scatter_node.outputs['Metallic'], node.inputs['Metallic'])
+                        links.new(output, node.inputs['Metallic'])
                     elif output.name == 'Roughness':
-                        links.new(scatter_node.outputs['Roughness'], node.inputs['Roughness'])
+                        links.new(output, node.inputs['Roughness'])
                     elif output.name == 'Emission':
-                        links.new(scatter_node.outputs['Emission'], node.inputs['Emission'])
+                        links.new(output, node.inputs['Emission'])
                     elif output.name == 'Alpha':
-                        links.new(scatter_node.outputs['Alpha'], node.inputs['Alpha'])
-                    elif output.name == 'Bump':
-                        bump_node = nodes.new('ShaderNodeBump')
-                        bump_node.location = [node.location[0] - 200, node.location[1] - 300]
-                        bump_node.inputs['Distance'].default_value = 0.025
-                        links.new(scatter_node.outputs['Bump'], bump_node.inputs['Height'])
-                        links.new(bump_node.outputs[0], node.inputs['Normal'])
+                        links.new(output, node.inputs['Alpha'])
                     elif output.name == 'Normal':
                         nrm_node = nodes.new('ShaderNodeNormalMap')
-                        nrm_node.location = [node.location[0] - 200, node.location[1] - 500]
-                        links.new(scatter_node.outputs['Normal'], nrm_node.inputs['Color'])
+                        nrm_node.location = [node.location[0] - 200, node.location[1] - 350]
+                        links.new(output, nrm_node.inputs['Color'])
                         links.new(nrm_node.outputs[0], node.inputs['Normal'])
+                    elif output.name == 'Bump':
+                        bump_node = nodes.new('ShaderNodeBump')
+                        bump_node.location = [node.location[0] - 200, node.location[1] - 500]
+                        bump_node.inputs['Distance'].default_value = 0.025
+                        links.new(output, bump_node.inputs['Height'])
+                        links.new(bump_node.outputs[0], node.inputs['Normal'])
+                        if nrm_node:
+                            links.new(nrm_node.outputs[0], bump_node.inputs['Normal'])
             else: 
                 links.new(scatter_node.outputs[0], node.inputs[0])
         elif node.type == 'BSDF_DIFFUSE':
@@ -469,7 +472,7 @@ def remove_images(selected_nodes):
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
     for texture in textures: nodes.remove(texture)
 
-def setup_scatter_node(self, selected_nodes):
+def setup_scatter_node(self, selected_nodes, should_remove=True):
     transparency = (self.layering == 'simple_alpha' or self.layering == 'layered' or self.layering == 'overlapping')
     sorted_textures = sort_textures(self, selected_nodes)
     scatter_node = append_scatter_node(self, selected_nodes)
@@ -481,7 +484,7 @@ def setup_scatter_node(self, selected_nodes):
     cleanup_layering(self, scatter_node, scatter_sources)
     cleanup_options(self, scatter_node, scatter_coordinates)
     connect_shader(self, selected_nodes, scatter_node)
-    remove_images(selected_nodes)
+    if should_remove: remove_images(selected_nodes)
     return scatter_node
 
 def create_layered_node(self, selected_nodes):
@@ -489,9 +492,7 @@ def create_layered_node(self, selected_nodes):
     def create_master_node():
         nodes = selected_nodes[0].id_data.nodes
         # creating the outer node like this is wasteful, but Blender crashes if creating so many node tree inputs via python
-        initial_node = nodes.new("ShaderNodeTexImage")
-        initial_node.image = selected_nodes[0].image
-        master_node = setup_scatter_node(self, [initial_node])
+        master_node = setup_scatter_node(self, selected_nodes, False)
         master_node.node_tree.name = 'SS - Scatter Layered'
         master_node.location = average_location(selected_nodes)
         for node in master_node.node_tree.nodes:
@@ -501,16 +502,29 @@ def create_layered_node(self, selected_nodes):
 
     def create_inner_nodes(master_node):
         nodes = master_node.node_tree.nodes
-        scatter_nodes = []
-        for node_idx, node in enumerate(selected_nodes):
+        textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
+        nodes_to_scatter = []
+        for node_idx, node in enumerate(textures):
             inner_node = nodes.new("ShaderNodeTexImage")
             inner_node.image = node.image
             inner_node.interpolation = node.interpolation
             inner_node.projection = node.projection
             inner_node.extension = node.extension
             inner_node.interpolation = node.interpolation
-            inner_node.location = [300 * node_idx, 0]
-            scatter_node = setup_scatter_node(self, [inner_node])
+            nodes_to_scatter.append(inner_node)
+        sorted_textures = sort_textures(self, nodes_to_scatter)
+        max_nodes = max([ len(sorted_textures[x]) for x in sorted_textures ])
+        tex_sets = []
+        for idx in range(max_nodes):
+            tex_set = []
+            for channel in sorted_textures:
+                if len(sorted_textures[channel]) > idx:
+                    tex_set.append(sorted_textures[channel][idx])
+            tex_sets.append(tex_set)
+        scatter_nodes = []
+        for set_idx, set in enumerate(tex_sets):
+            scatter_node = setup_scatter_node(self, set)
+            scatter_node.location = [300 * set_idx, 0]
             scatter_nodes.append(scatter_node)
         return scatter_nodes
 
@@ -527,18 +541,40 @@ def create_layered_node(self, selected_nodes):
                 if input.name != 'Background':
                     links.new(input_node.outputs[input.name], input)
             if node_idx == 0:
-                links.new(input_node.outputs['Background'], node.inputs['Background'])
+                for output in node.outputs:
+                    if output.name == 'Image':
+                        links.new(input_node.outputs['Background'], node.inputs['Background'])
+                    elif output.name != 'Random Color':
+                        links.new(input_node.outputs[output.name], node.inputs[output.name])
             elif node_idx > 0:
                 seed = nodes.new("ShaderNodeMath")
-                seed.location = [node.location[0] - 200, node.location[1] - 600]
+                seed.location = [node.location[0] - 200, node.location[1] - 800]
                 seed.operation = 'MULTIPLY'
                 seed.inputs[1].default_value = 1 / (node_idx + 1)
                 links.new(input_node.outputs['Random Seed'], seed.inputs[0])
                 links.new(seed.outputs[0], node.inputs['Random Seed'])
+        for node_idx, node in enumerate(scatter_nodes):
             if node_idx < last_idx:
                 for output_idx, output in enumerate(node.outputs):
                     if output.name == 'Image':
-                        links.new(output, scatter_nodes[node_idx + 1].inputs['Background'])
+                        if 'Image' in scatter_nodes[node_idx + 1].inputs:
+                            links.new(output, scatter_nodes[node_idx + 1].inputs['Background'])
+                        else:
+                            self.report(
+                                {'ERROR'}, 
+                                'Please make sure each texture set has the same types of textures.' +
+                                'One set does not have an Image channel. Inner nodes have not be set correctly'
+                            )
+                    elif output.name != 'Random Color':
+                        if output.name in scatter_nodes[node_idx + 1].inputs:
+                            links.new(output, scatter_nodes[node_idx + 1].inputs[output.name])
+                        else:
+                            self.report(
+                                {'ERROR'}, 
+                                'Please make sure each texture set has the same types of textures.' +
+                                'One set does not have a %s channel. Inner nodes have not be set correctly' 
+                                %(output.name)
+                            )
             elif node_idx == last_idx:
                 for output_idx, output in enumerate(node.outputs):
                     links.new(output, nodes['Group Output'].inputs[output_idx])
@@ -548,7 +584,11 @@ def create_layered_node(self, selected_nodes):
     link_inner_nodes(master_node, scatter_nodes)
     connect_shader(self, selected_nodes, master_node)
     remove_images(selected_nodes)
+    return master_node
     
+def setup_defaults(self, scatter_node):
+    pass
+
 class NODE_OT_scatter(Operator):
     bl_label = "Voronoi Scatter"
     bl_idname = "node.scatter"
@@ -564,7 +604,7 @@ class NODE_OT_scatter(Operator):
             ("uv", "UV", "Scatter based on UV coordinates"),
             ("tri-planar", "Tri-Planar", "Scatter based on generated object coordinates")
         ],
-        default = "uv"
+        default = defaults.scatter['projection_method'],
     )
     texture_interpolation: bpy.props.EnumProperty(
         name = "Pixel Interpolation",
@@ -573,7 +613,7 @@ class NODE_OT_scatter(Operator):
             ("Closest", "Closest", "Pixels are not interpolated, like in pixel art. This fixes artifacts between voronoi cell edges in Eevee"),
             ("Cubic", "Cubic", "Pixels are smoothed but may cause artifacts between voronoi cells in Eevee. Only recommended for Cycles")
         ],
-        default = "Closest", 
+        default = defaults.scatter['texture_interpolation'], 
     )
     layering: bpy.props.EnumProperty(
         name = "Scatter Method",
@@ -586,32 +626,32 @@ class NODE_OT_scatter(Operator):
             ("layered", "Layered Alpha", "Creates Interspersed Alpha scatter nodes for each texture and chains them all together, which allows for very a basic overlap that is faster than using Overlapping"),
             ("overlapping", "Overlapping Alpha", "All the options of Simple Alpha with the additional benefit of enabling neighboring cells to overlap each other. This increases shader compilation time since 9 cells are calculated rather than 1")
         ],
-        default = "layered",
+        default = defaults.scatter['layering'],
     )
     use_edge_blur: bpy.props.BoolProperty(
         name = "Enable Edge Blur",
         description = "Adds ability to blend the edges of each voronoi cell without distorting the texture. This helps seams between cells appear less obvious, especially for tileable textures",
-        default = True,
+        default = defaults.scatter['use_edge_blur'],
     )
     use_edge_warp: bpy.props.BoolProperty(
         name = "Enable Edge Warp",
         description = "Adds ability to distort the edges of each voronoi cell without distorting the texture. This helps seams between cells appear less obvious, especially for tileable textures",
-        default = True,
+        default = defaults.scatter['use_edge_warp'],
     )
     use_texture_warp: bpy.props.BoolProperty(
         name = "Enable Texture Warp",
         description = "Adds ability to distort the shape of the resulting texture",
-        default = False,
+        default = defaults.scatter['use_texture_warp'],
     )
     use_random_col: bpy.props.BoolProperty(
         name = "Enable Random Color",
         description = "Adds easy controls for varying the color of each instance",
-        default = True,
+        default = defaults.scatter['use_random_col'],
     )
     use_pbr: bpy.props.BoolProperty(
         name = "Detect PBR Channels",
         description = "Automatically detects PBR textures based on the image name and scatters each texture set accordingly",
-        default = False,
+        default = defaults.scatter['use_pbr'],
     )
 
     def draw(self, context):
@@ -649,6 +689,7 @@ class NODE_OT_scatter(Operator):
             create_layered_node(self, selected_nodes)
         else:
             setup_scatter_node(self, selected_nodes)
+        setup_defaults(self)
         return {'FINISHED'}
  
 def draw_menu(self, context):
