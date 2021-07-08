@@ -51,11 +51,15 @@ layering = {
     },
     'simple_alpha': {
         'Texture Scale': 2,
+        'Random Cell Shape': 1,
     },
     'layered': {
         'Texture Scale': 2,
+        'Random Cell Shape': 1,
+        'Edge Warp': 0,
     },
     'overlapping': {
         'Texture Scale': 2,
+        'Random Location': 0.5
     },
 }

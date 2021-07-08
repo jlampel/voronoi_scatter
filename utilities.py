@@ -84,3 +84,8 @@ def create_sortable_name(x):
     name = without_spaces
     return name
 
+def remove_section(nodes, title):
+    for node in nodes:
+        if node.parent and node.parent.name == title:
+            nodes.remove(node)
+    nodes.remove(nodes[title])

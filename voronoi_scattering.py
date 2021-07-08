@@ -11,6 +11,7 @@ append_node = utilities.append_node
 create_friendly_name = utilities.create_friendly_name
 create_sortable_name = utilities.create_sortable_name
 average_location = utilities.average_location
+remove_section = utilities.remove_section
    
 def create_coordinates_node(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
@@ -93,7 +94,6 @@ def append_scatter_node(self, selected_nodes):
 def create_scatter_coordinates(scatter_node):
     scatter_coordinates_groups = [x for x in scatter_node.node_tree.nodes if x.label == "Scatter Coordinates"]
     new_scatter_coordinates = scatter_coordinates_groups[0].node_tree.copy()
-    # manage any layering options here
     for x in scatter_coordinates_groups:
         x.node_tree = new_scatter_coordinates
     return new_scatter_coordinates
@@ -381,6 +381,16 @@ def cleanup_layering(self, scatter_node, scatter_sources):
         output_count = len(outputs)
         outputs.move(1, output_count - 1) 
 
+    if self.layering != 'layered' and self.layering != 'overlapping':
+        remove_section(nodes, 'Randomize Layers')
+        links.new(nodes['Warped Coordinates'].outputs[0], nodes['Scatter Coordinates'].inputs['Vector'])
+
+    # Optimize random locations to avoid clipping
+    if self.layering != 'overlapping':
+        nodes['Scatter Coordinates'].node_tree.nodes['Location Origin'].inputs[1].default_value = [0.5, 0.5, 0]
+    if self.layering == 'simple' or self.layering == 'blended':
+        nodes['Scatter Coordinates'].node_tree.nodes['Location Range'].inputs['To Max'].default_value = 3
+
 def cleanup_options(self, scatter_node, scatter_coordinates):
     nodes = scatter_node.node_tree.nodes
     links = scatter_node.node_tree.links
@@ -537,6 +547,8 @@ def create_layered_node(self, selected_nodes):
         output_node.location = [len(scatter_nodes) * 300 + 300, 100]
         last_idx = len(scatter_nodes) - 1
         for node_idx, node in enumerate(scatter_nodes):
+            node.node_tree.nodes['Randomize X'].inputs[1].default_value = ((random() * 2) - 1) * 200
+            node.node_tree.nodes['Randomize Y'].inputs[1].default_value = ((random() * 2) - 1) * 200
             for input in node.inputs:
                 if input.name != 'Background':
                     links.new(input_node.outputs[input.name], input)
@@ -546,18 +558,11 @@ def create_layered_node(self, selected_nodes):
                         links.new(input_node.outputs['Background'], node.inputs['Background'])
                     elif output.name != 'Random Color':
                         links.new(input_node.outputs[output.name], node.inputs[output.name])
-            elif node_idx > 0:
-                seed = nodes.new("ShaderNodeMath")
-                seed.location = [node.location[0] - 200, node.location[1] - 800]
-                seed.operation = 'MULTIPLY'
-                seed.inputs[1].default_value = 1 / (node_idx + 1)
-                links.new(input_node.outputs['Random Seed'], seed.inputs[0])
-                links.new(seed.outputs[0], node.inputs['Random Seed'])
         for node_idx, node in enumerate(scatter_nodes):
             if node_idx < last_idx:
                 for output_idx, output in enumerate(node.outputs):
                     if output.name == 'Image':
-                        if 'Image' in scatter_nodes[node_idx + 1].inputs:
+                        if 'Background' in scatter_nodes[node_idx + 1].inputs:
                             links.new(output, scatter_nodes[node_idx + 1].inputs['Background'])
                         else:
                             self.report(
