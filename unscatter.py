@@ -1,6 +1,7 @@
 import bpy
 from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
+from . import defaults
 
 def get_scatter_nodes(selected_nodes):
     if selected_nodes:
@@ -29,7 +30,7 @@ class NODE_OT_unscatter(Operator):
             ("Cubic", "Cubic", "Cubic interpolation. Smoothest option"),
             ("Smart", "Smart", "Cubic when magifying, otherwise linear (OSL use only)")
         ],
-        default = "Linear",
+        default = defaults.unscatter['interpolation'],
     )
     projection: bpy.props.EnumProperty(
         name="Projection",
@@ -40,7 +41,7 @@ class NODE_OT_unscatter(Operator):
             ("SPHERE", "Sphere", "Image is projected spherically with the Z axis as the center"),
             ("TUBE", "Tube", "Image is projected from a cylinder with the Z axis as the center"),
         ],
-        default="FLAT"
+        default = defaults.unscatter['projection'],
     )
     extension: bpy.props.EnumProperty(
         name="Extension",
@@ -50,7 +51,7 @@ class NODE_OT_unscatter(Operator):
             ("CLIP", "Clip", "Sets pixels outside of texture as transparent"),
             ("EXTEND", "Extend", "Repeats only the boundary pixels of the texture")
         ],
-        default="REPEAT"
+        default = defaults.unscatter['extension'],
     )
 
     @classmethod

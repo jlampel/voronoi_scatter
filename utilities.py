@@ -13,6 +13,12 @@ def append_node(nodes, node_tree_name):
     node_group.node_tree.name = node_tree_name
     return node_group
 
+def average_location(selected_nodes):
+    return [
+        sum([x.location[0] for x in selected_nodes]) / len(selected_nodes),
+        sum([x.location[1] for x in selected_nodes]) / len(selected_nodes) + 150
+    ]
+
 def create_friendly_name(x):
     name = x
     file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
@@ -21,7 +27,7 @@ def create_friendly_name(x):
     metal_names = ['metal', 'metallic', 'metalness', 'm', 'met', 'mt']
     rough_names = ['roughness', 'rough', 'r', 'rgh']
     gloss_names = ['gloss', 'glossiness', 'gls']
-    spec_names = ['spec', 'specular', 's', 'refl', 'reflection']
+    spec_names = ['spec', 'specular', 'spc', 'refl', 'reflection']
     emit_names = ['emit', 'emission', 'emissive', 'glow', 'glw', 'e']
     alpha_names = ['alpha', 'transparent', 'transparency', 'opacity']
     normal_names = ['normal', 'nrm', 'n', 'nrlm']
@@ -77,3 +83,4 @@ def create_sortable_name(x):
             without_spaces.append(word)
     name = without_spaces
     return name
+

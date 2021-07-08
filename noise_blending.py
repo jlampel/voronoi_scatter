@@ -1,6 +1,7 @@
 import bpy
 from bpy.types import (Operator)
 from pprint import pprint
+from . import defaults
 
 
 def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
@@ -217,13 +218,7 @@ class NODE_OT_noise_blend(Operator):
             ("first", "Only First", "Only mix the first outputs together"),
             # can also be "custom", but that should only be used programatically
         ],
-        default = "common_name"
-    )
-
-    should_combine_scatters: bpy.props.BoolProperty(
-        name = "Combine Scatter Nodes",
-        description = "Groups scatter nodes together so that all textures can be controlled by one node. This is slightly faster because it only uses one voronoi texture for all of them",
-        default = True
+        default = defaults.noise_blend['mix_by']
     )
 
     @classmethod
