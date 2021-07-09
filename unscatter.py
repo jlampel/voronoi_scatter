@@ -1,17 +1,54 @@
 import bpy
 from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
+from pprint import pprint
 from . import defaults
 
-def get_scatter_nodes(selected_nodes):
+def get_scatter_sources(selected_nodes):
+    nodes = selected_nodes[0].id_data.nodes
     if selected_nodes:
-        group_nodes = [x for x in selected_nodes[0].id_data.nodes if x.select and x.type == 'GROUP']
-        def has_scatter_sources(node):
-            scatter_sources = [x for x in node.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
-            return scatter_sources
-        return [x for x in group_nodes if has_scatter_sources(x)]
+        selected_group_nodes = [x for x in nodes if x.select and x.type == 'GROUP']
+        scatter_sources = []
+        for group_node in selected_group_nodes:
+            for node in group_node.node_tree.nodes:
+                if node.type == 'GROUP':
+                    if 'SS - Scatter Source' in node.node_tree.name:
+                        scatter_sources.append(node)
+                    elif 'SS - Scatter Fast' in node.node_tree.name:
+                        for inner_node in node.node_tree.nodes:
+                            if inner_node.type == 'GROUP' and 'SS - Scatter Source' in inner_node.node_tree.name:
+                                scatter_sources.append(inner_node)
+        return scatter_sources
     else:
         return False
+
+def extract_images(self, selected_nodes):
+    nodes = selected_nodes[0].id_data.nodes
+    scatter_nodes = [x for x in selected_nodes if get_scatter_sources([x])]
+    for scatter_node in scatter_nodes:
+        inner_textures = []
+        new_textures = []
+        scatter_sources = get_scatter_sources([scatter_node])
+        for scatter_source in scatter_sources:
+            for node in scatter_source.node_tree.nodes:
+                if node.type == 'TEX_IMAGE': inner_textures.append(node)
+        columns = 0
+        for image_idx, image in enumerate(inner_textures):
+            new_image = nodes.new("ShaderNodeTexImage")
+            new_textures.append(new_image)
+            new_image.image = image.image
+            new_image.image.colorspace_settings.name = image.image.colorspace_settings.name
+            new_image.projection = self.projection
+            new_image.interpolation = self.interpolation
+            new_image.extension = self.extension
+            new_image.location = [scatter_node.location[0] + (250 * columns), scatter_node.location[1] - (255 * (image_idx % 4))] 
+            if (image_idx + 1) % 4 == 0: columns += 1
+
+def remove_scatter_nodes(selected_nodes):
+    nodes = selected_nodes[0].id_data.nodes
+    for node in selected_nodes:
+        if get_scatter_sources([node]):
+            nodes.remove(node)
 
 class NODE_OT_unscatter(Operator):
     bl_label = "Un-Scatter"
@@ -56,37 +93,15 @@ class NODE_OT_unscatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        return get_scatter_nodes(context.selected_nodes)
+        return get_scatter_sources(context.selected_nodes)
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         selected_nodes = context.selected_nodes
-        nodes = selected_nodes[0].id_data.nodes
-        selected_nodes = get_scatter_nodes(context.selected_nodes)
-
-        for scatterNode in selected_nodes:
-            scatter_sources = [x for x in scatterNode.node_tree.nodes if x.type == 'GROUP' and 'SS - Scatter Source' in x.node_tree.name]
-            images_list = []
-            image_count = 0
-            columns = 0
-            for x in range(len(scatter_sources)):
-                scatter_source = scatter_sources[x]
-                images = [x for x in scatter_source.node_tree.nodes if x.type == "TEX_IMAGE"]
-                for i in range(len(images)):
-                    image_count += 1
-                    image = nodes.new("ShaderNodeTexImage")
-                    images_list.append(image)
-                    image.image = images[i].image
-                    image.image.colorspace_settings.name = images[i].image.colorspace_settings.name
-                    image.projection = self.projection
-                    image.interpolation = self.interpolation
-                    image.extension = self.extension
-                    image.location = [scatterNode.location[0] + (250 * columns), scatterNode.location[1] - (255 * (image_count % 4))] 
-                    if image_count % 4 == 0: columns += 1
-            nodes.remove(scatterNode)
-        
+        extract_images(self, selected_nodes)
+        remove_scatter_nodes(selected_nodes)
         return {'FINISHED'}
 
 def draw_menu(self, context):
