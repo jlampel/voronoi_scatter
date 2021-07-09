@@ -4,14 +4,8 @@ from pprint import pprint
 from bpy.types import (Object, Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 from . import defaults
-from . import noise_blending
-noise_blend = noise_blending.noise_blend
-from . import utilities
-append_node = utilities.append_node
-create_friendly_name = utilities.create_friendly_name
-create_sortable_name = utilities.create_sortable_name
-average_location = utilities.average_location
-remove_section = utilities.remove_section
+from .noise_blending import noise_blend
+from .utilities import append_node, create_friendly_name, create_sortable_name, average_location, remove_section
    
 def create_coordinates_node(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
