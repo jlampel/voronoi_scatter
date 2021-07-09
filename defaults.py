@@ -12,7 +12,7 @@ texture_names = {
     'emit': ['emit', 'emission', 'emissive', 'glow', 'glw', 'e'],
     'alpha': ['alpha', 'transparent', 'transparency', 'opacity'],
     'normal': ['normal', 'nrm', 'n', 'nrlm'],
-    'bump': ['bmp', 'bump', 'height', 'h', 'dp', 'displacement']
+    'bump': ['bmp', 'bump', 'height', 'h', 'dp', 'disp', 'displacement']
 }
 
 # Defaults for the operators 

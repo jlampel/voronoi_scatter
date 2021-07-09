@@ -191,13 +191,16 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
 
     textures = order_nodes()
     sockets = get_sockets()
-    blending_node = create_group()
-    mix_inputs = create_inputs(blending_node, sockets)
-    link_inputs(textures, blending_node, sockets, mix_inputs)
-    create_outputs(blending_node, sockets)
-    mix_colors(blending_node, mix_inputs, sockets)
-    create_coordinates(blending_node, textures)
-    return blending_node
+    if sockets: 
+        blending_node = create_group()
+        mix_inputs = create_inputs(blending_node, sockets)
+        link_inputs(textures, blending_node, sockets, mix_inputs)
+        create_outputs(blending_node, sockets)
+        mix_colors(blending_node, mix_inputs, sockets)
+        create_coordinates(blending_node, textures)
+        return blending_node
+    else:
+        self.report({'ERROR'}, 'No matching output sockets found')
 
 
 class NODE_OT_noise_blend(Operator):
