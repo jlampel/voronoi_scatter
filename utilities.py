@@ -1,6 +1,7 @@
 import os
 import re 
 import bpy 
+from .defaults import file_types, texture_names
 
 def append_node(nodes, node_tree_name):
     path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
@@ -21,49 +22,38 @@ def average_location(selected_nodes):
 
 def create_friendly_name(x):
     name = x
-    file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
-    albedo_names = ['albedo', 'base color', 'base_color', 'basecolor', 'base_col', 'color', 'diffuse', 'diff', 'col', 'd']
-    ao_names = ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion']
-    metal_names = ['metal', 'metallic', 'metalness', 'm', 'met', 'mt']
-    rough_names = ['roughness', 'rough', 'r', 'rgh']
-    gloss_names = ['gloss', 'glossiness', 'gls']
-    spec_names = ['spec', 'specular', 'spc', 'refl', 'reflection']
-    emit_names = ['emit', 'emission', 'emissive', 'glow', 'glw', 'e']
-    alpha_names = ['alpha', 'transparent', 'transparency', 'opacity']
-    normal_names = ['normal', 'nrm', 'n', 'nrlm']
-    bump_names = ['bmp', 'bump', 'height', 'h', 'dp', 'displacement']
     for t in file_types:
         if t in name:
             name = name.replace(t, '')
     for word in re.split('[^a-z]', name.lower()):
-        if word in albedo_names: 
+        if word in texture_names['albedo']: 
             name = 'Albedo'
             break
-        if word in ao_names: 
+        if word in texture_names['ao']: 
             name = 'AO'
             break
-        elif word in metal_names: 
+        elif word in texture_names['metal']: 
             name = 'Metallic'
             break
-        elif word in rough_names:
+        elif word in texture_names['rough']:
             name = 'Roughness'
             break
-        elif word in gloss_names:
+        elif word in texture_names['gloss']:
             name = 'Glossiness'
             break
-        elif word in spec_names:
+        elif word in texture_names['spec']:
             name = 'Specular'
             break
-        elif word in emit_names:
+        elif word in texture_names['emit']:
             name = 'Emission'
             break
-        elif word in alpha_names:
+        elif word in texture_names['alpha']:
             name = 'Alpha'
             break
-        elif word in normal_names:
+        elif word in texture_names['normal']:
             name = 'Normal'
             break
-        elif word in bump_names:
+        elif word in texture_names['bump']:
             name = 'Bump'
             break
     return name 

@@ -1,3 +1,21 @@
+# These are the file extensions that get stripped out of the name when checking for a PBR texture
+file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
+
+# Including any of the following words between separaters [' ', '-', '_'] will add the texture to the corresponding PBR channel
+texture_names = {
+    'albedo': ['albedo', 'base color', 'base_color', 'basecolor', 'base_col', 'color', 'diffuse', 'diff', 'col', 'd'],
+    'ao': ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion'],
+    'metal': ['metal', 'metallic', 'metalness', 'm', 'met', 'mt'],
+    'rough': ['roughness', 'rough', 'r', 'rgh'],
+    'gloss': ['gloss', 'glossiness', 'gls'],
+    'spec': ['spec', 'specular', 'spc', 'refl', 'reflection'],
+    'emit': ['emit', 'emission', 'emissive', 'glow', 'glw', 'e'],
+    'alpha': ['alpha', 'transparent', 'transparency', 'opacity'],
+    'normal': ['normal', 'nrm', 'n', 'nrlm'],
+    'bump': ['bmp', 'bump', 'height', 'h', 'dp', 'displacement']
+}
+
+# Defaults for the operators 
 scatter = {
     'projection_method': 'uv',
     'texture_interpolation': 'Closest',
@@ -16,6 +34,8 @@ unscatter = {
 noise_blend = {
     'mix_by': 'common_name',
 }
+
+# Default values for the scatter node inputs on creation
 layering = {
     'common': {
         'Tri-Planar Blending': 0.15,
