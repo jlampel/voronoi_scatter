@@ -36,9 +36,6 @@ def create_coordinates_node(self, selected_nodes):
     return scatter_node
 
 def sort_textures(self, selected_nodes):
-    if self.layering == 'overlapping':
-        if len(selected_nodes) > 4:
-            self.report({'WARNING'}, 'Each texture must be computed 9 times for the overlapping method. Compilation may be slow. Try simple layering for faster renders')
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
     sorted_textures = {
         'Image': [],
@@ -53,6 +50,7 @@ def sort_textures(self, selected_nodes):
         'Normal': [],
         'Bump': [],
     }
+
     for texture in textures:
         is_map = False
         if self.use_pbr:
@@ -66,6 +64,11 @@ def sort_textures(self, selected_nodes):
     for map_type in sorted_textures:
         if sorted_textures[map_type] != []:
             filtered_textures[map_type] = sorted_textures[map_type]
+
+    if self.layering == 'overlapping' and len(selected_nodes) > 4:
+        self.report({'WARNING'}, 
+            'Each texture must be computed 9 times for the overlapping method. Compilation may be slow. Try simple layering for faster renders'
+        )
     if filtered_textures.get('Normal'):
         self.report({'WARNING'}, 
             'Rotating a normal map is not advised. The light will bounce in the wrong direction.'+ 

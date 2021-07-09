@@ -15,11 +15,11 @@ texture_names = {
     'bump': ['bmp', 'bump', 'height', 'h', 'dp', 'disp', 'displacement']
 }
 
-# Defaults for the operators 
+# Defaults for the operators. Do not add or remove any of these. 
 scatter = {
-    'projection_method': 'uv',
-    'texture_interpolation': 'Closest',
-    'layering': 'simple',
+    'projection_method': 'uv', # uv or tri-planar
+    'texture_interpolation': 'Closest', # Closest or Cubic
+    'layering': 'simple',   # coordinates, simple, blended, simple_alpha, layered, or overlapping
     'use_edge_blur': True,
     'use_edge_warp': True,
     'use_texture_warp': False,
@@ -27,15 +27,16 @@ scatter = {
     'use_pbr': False,
 }
 unscatter = {
-    'interpolation': 'Linear',
-    'projection': 'FLAT',
-    'extension': 'REPEAT',
+    'interpolation': 'Linear', # Linear, Closest, Cubic, or Smart
+    'projection': 'FLAT', # FLAT, BOX, SPHERE, or TUBE
+    'extension': 'REPEAT',  # REPEAT, CLIP, or EXTEND
 }
 noise_blend = {
-    'mix_by': 'common_name',
+    'mix_by': 'common_name', # order, name, common_name, or first
 }
 
-# Default values for the scatter node inputs on creation
+# Default values for the scatter node inputs on creation. 
+# You can add or remove any settings that you find on a scatter node
 layering = {
     'common': {
         'Tri-Planar Blending': 0.15,
