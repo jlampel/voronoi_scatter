@@ -24,7 +24,7 @@ scatter = {
     'use_edge_warp': True,
     'use_texture_warp': False,
     'use_random_col': True,
-    'use_pbr': False,
+    'use_pbr': True,
 }
 unscatter = {
     'interpolation': 'Linear', # Linear, Closest, Cubic, or Smart
