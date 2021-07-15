@@ -7,34 +7,6 @@ from . import defaults
 from .noise_blending import noise_blend
 from .utilities import append_node, create_friendly_name, create_sortable_name, average_location, remove_section
    
-def create_coordinates_node(self, selected_nodes):
-    nodes = selected_nodes[0].id_data.nodes
-    links = selected_nodes[0].id_data.links
-    textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
-    scatter_node = append_node(nodes, 'SS - Scatter Mapping')
-    scatter_node.label = "Scatter Mapping"
-    scatter_node.width = 250
-    scatter_node.location = [
-        min([tex.location[0] for tex in textures]) - 350, 
-        sum([x.location[1] for x in textures]) / len(textures) + 100
-    ]
-    for texture in textures:
-        links.new(scatter_node.outputs[0], texture.inputs['Vector'])
-        texture.interpolation = self.texture_interpolation
-    texture_coordinates = nodes.new("ShaderNodeTexCoord")
-    if self.projection_method == 'uv':
-        texture_coordinates.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 235]
-        links.new(texture_coordinates.outputs['UV'], scatter_node.inputs['Vector'])
-    else:
-        tri_planar = append_node(nodes, 'SS - Tri-Planar Mapping')
-        tri_planar.label = "Tri-Planar Mapping"
-        tri_planar.width = 150
-        tri_planar.location = [scatter_node.location[0] - 200, scatter_node.location[1] - 345]
-        texture_coordinates.location = [scatter_node.location[0] - 400, scatter_node.location[1] - 235]
-        links.new(texture_coordinates.outputs['Object'], tri_planar.inputs['Vector'])
-        links.new(tri_planar.outputs['Vector'], scatter_node.inputs['Vector'])
-    return scatter_node
-
 def sort_textures(self, selected_nodes):
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
     sorted_textures = {
@@ -425,10 +397,7 @@ def cleanup_options(self, scatter_node, scatter_coordinates):
             scatter_coordinates.links.new(scatter_coordinates.nodes['Shift Cells'].outputs[0], scatter_coordinates.nodes['Voronoi Texture'].inputs[0])
 
     if not self.use_texture_warp:
-        for node in nodes:
-            if node.parent and node.parent.name == 'Texture Warp':
-                nodes.remove(node)
-        nodes.remove(nodes['Texture Warp'])
+        remove_section(nodes, 'Texture Warp')
         links.new(nodes['Scaled Coordinates'].outputs[0], nodes['Warped Coordinates'].inputs[0])
         scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp'])
         scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp Scale'])
@@ -492,6 +461,68 @@ def setup_scatter_node(self, selected_nodes, should_remove=True):
     cleanup_options(self, scatter_node, scatter_coordinates)
     connect_shader(self, selected_nodes, scatter_node)
     if should_remove: remove_images(selected_nodes)
+    return scatter_node
+
+def create_coordinates_node(self, selected_nodes):
+    nodes = selected_nodes[0].id_data.nodes
+    links = selected_nodes[0].id_data.links
+
+    # append and attach node 
+    textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
+    scatter_node = append_node(nodes, 'SS - Scatter Mapping')
+    scatter_node.label = "Scatter Mapping"
+    scatter_node.width = 250
+    scatter_node.location = [
+        min([tex.location[0] for tex in textures]) - 350, 
+        sum([x.location[1] for x in textures]) / len(textures) + 100
+    ]
+    for texture in textures:
+        links.new(scatter_node.outputs[0], texture.inputs['Vector'])
+        texture.interpolation = self.texture_interpolation
+
+    # Create or attach vector coordinates
+    texture_coordinates = nodes.new("ShaderNodeTexCoord")
+    if self.projection_method == 'uv':
+        texture_coordinates.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 235]
+        links.new(texture_coordinates.outputs['UV'], scatter_node.inputs['Vector'])
+    else:
+        tri_planar = append_node(nodes, 'SS - Tri-Planar Mapping')
+        tri_planar.label = "Tri-Planar Mapping"
+        tri_planar.width = 150
+        tri_planar.location = [scatter_node.location[0] - 200, scatter_node.location[1] - 345]
+        texture_coordinates.location = [scatter_node.location[0] - 400, scatter_node.location[1] - 235]
+        links.new(texture_coordinates.outputs['Object'], tri_planar.inputs['Vector'])
+        links.new(tri_planar.outputs['Vector'], scatter_node.inputs['Vector'])
+
+    # clean up options 
+    scatter_node_nodes = scatter_node.node_tree.nodes
+    scatter_node_links = scatter_node.node_tree.links
+
+    if not self.use_edge_blur:
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Blur'])
+        scatter_node_nodes.remove(scatter_node_nodes['White Noise Texture'])
+        scatter_node_nodes.remove(scatter_node_nodes['Blur Range'])
+        scatter_node_nodes.remove(scatter_node_nodes['Edge Blur'])
+        if self.use_edge_warp:
+            scatter_node_links.new(scatter_node_nodes['Randomize Scatter'].outputs[0], scatter_node_nodes['Edge Warp'].inputs[1])
+        else:
+            scatter_node_links.new(scatter_node_nodes['Randomize Scatter'].outputs[0], scatter_node_nodes['Voronoi Texture'].inputs[0])
+    if not self.use_edge_warp:
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp'])
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp Scale'])
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp Detail'])
+        scatter_node_nodes.remove(scatter_node_nodes['Noise Texture'])
+        scatter_node_nodes.remove(scatter_node_nodes['Edge Warp'])
+        if self.use_edge_blur:
+            scatter_node_links.new(scatter_node_nodes['Edge Blur'].outputs[0], scatter_node_nodes['Voronoi Texture'].inputs[0])
+        else:
+            scatter_node_links.new(scatter_node_nodes['Randomize Scatter'].outputs[0], scatter_node_nodes['Voronoi Texture'].inputs[0])
+    if not self.use_texture_warp:
+        remove_section(scatter_node_nodes, 'Texture Warp')
+        scatter_node_links.new(scatter_node_nodes['Scaled Coordinates'].outputs[0], scatter_node_nodes['Warped Coordinates'].inputs[0])
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp'])
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp Scale'])
+
     return scatter_node
 
 def create_layered_node(self, selected_nodes):
@@ -598,10 +629,23 @@ def setup_defaults(self, scatter_node):
             if default in [x.name for x in scatter_node.inputs]:
                 scatter_node.inputs[default].default_value = defaults.layering[self.layering][default]
 
+def voronoi_scatter(self, context):
+    selected_nodes = context.selected_nodes
+
+    # TODO: if selected node is a scatter node, un-scatter and then add those textures to the operation 
+
+    if self.layering == 'coordinates':
+        scatter_node = create_coordinates_node(self, selected_nodes)
+    elif self.layering == 'layered':
+        scatter_node = create_layered_node(self, selected_nodes)
+    else:
+        scatter_node = setup_scatter_node(self, selected_nodes)
+    setup_defaults(self, scatter_node)
+
 class NODE_OT_scatter(Operator):
-    bl_label = "Voronoi Scatter"
+    bl_label = "Scattershot: Voronoi Scatter"
     bl_idname = "node.scatter"
-    bl_description = "Scatters image and procedural textures in one click"
+    bl_description = "Scatters all selected image textures"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_options = {'REGISTER', 'UNDO'}
@@ -691,26 +735,11 @@ class NODE_OT_scatter(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        selected_nodes = context.selected_nodes
-        if self.layering == 'coordinates':
-            scatter_node = create_coordinates_node(self, selected_nodes)
-        elif self.layering == 'layered':
-            scatter_node = create_layered_node(self, selected_nodes)
-        else:
-            scatter_node = setup_scatter_node(self, selected_nodes)
-        setup_defaults(self, scatter_node)
+        voronoi_scatter(self, context)
         return {'FINISHED'}
  
-def draw_menu(self, context):
-    self.layout.separator()
-    self.layout.operator(NODE_OT_scatter.bl_idname)
-    
 def register():
     bpy.utils.register_class(NODE_OT_scatter)
-    bpy.types.NODE_MT_node.append(draw_menu)
-    bpy.types.NODE_MT_context_menu.append(draw_menu)
-    
+
 def unregister():
     bpy.utils.unregister_class(NODE_OT_scatter)
-    bpy.types.NODE_MT_node.remove(draw_menu)
-    bpy.types.NODE_MT_context_menu.remove(draw_menu)
