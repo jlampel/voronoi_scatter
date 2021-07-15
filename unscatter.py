@@ -51,7 +51,7 @@ def remove_scatter_nodes(selected_nodes):
             nodes.remove(node)
 
 class NODE_OT_unscatter(Operator):
-    bl_label = "Un-Scatter"
+    bl_label = "Scattershot: Un-Scatter"
     bl_idname = "node.unscatter"
     bl_description = "Reverses Voronoi Scatter"
     bl_space_type = "NODE_EDITOR"
@@ -93,7 +93,10 @@ class NODE_OT_unscatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        return get_scatter_sources(context.selected_nodes)
+        if context.selected_nodes:
+            return get_scatter_sources(context.selected_nodes)
+        else:
+            return False
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -103,16 +106,9 @@ class NODE_OT_unscatter(Operator):
         extract_images(self, selected_nodes)
         remove_scatter_nodes(selected_nodes)
         return {'FINISHED'}
-
-def draw_menu(self, context):
-    self.layout.operator(NODE_OT_unscatter.bl_idname)
     
 def register():
     bpy.utils.register_class(NODE_OT_unscatter)
-    bpy.types.NODE_MT_node.append(draw_menu)
-    bpy.types.NODE_MT_context_menu.append(draw_menu)
     
 def unregister():
     bpy.utils.unregister_class(NODE_OT_unscatter)
-    bpy.types.NODE_MT_node.remove(draw_menu)
-    bpy.types.NODE_MT_context_menu.remove(draw_menu)

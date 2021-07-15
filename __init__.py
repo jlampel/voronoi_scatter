@@ -23,17 +23,34 @@ bl_info = {
     "category": "Node",
 }
 
+import bpy
 from . import voronoi_scattering, unscatter, noise_blending
+
+def draw_context_menu(self, context):
+    self.layout.separator()
+    self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
+    self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
+    self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
+
+def draw_node_menu(self, context):
+    self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
+    self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
+    self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
+    self.layout.separator()
 
 def register():
     voronoi_scattering.register()
     unscatter.register()
     noise_blending.register()
+    bpy.types.NODE_MT_context_menu.append(draw_context_menu)
+    bpy.types.NODE_MT_node.prepend(draw_node_menu)
 
 def unregister():
     voronoi_scattering.unregister()
     unscatter.unregister()
     noise_blending.unregister()
+    bpy.types.NODE_MT_context_menu.remove(draw_context_menu)
+    bpy.types.NODE_MT_node.remove(draw_node_menu)
 
 if __name__ == "__main__":
     register()

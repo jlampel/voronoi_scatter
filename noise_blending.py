@@ -92,7 +92,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         blending_links.new(white_noise.outputs["Color"], vector_mix.inputs[2])
         noise = blending_nodes.new('ShaderNodeTexNoise')
         noise.location = [-400, 0]
-        noise.noise_dimensions = '2D'
+        if mix_by == 'custom': noise.noise_dimensions = '2D'
         noise.inputs['Roughness'].default_value = 0.75
         noise.inputs['Detail'].default_value = 5
         blending_links.new(vector_mix.outputs["Color"], noise.inputs["Vector"])
@@ -204,9 +204,9 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
 
 
 class NODE_OT_noise_blend(Operator):
-    bl_label = "Noise Blend"
+    bl_label = "Scattershot: Noise Blend"
     bl_idname = "node.noise_blend"
-    bl_description = "Blends any number of images based on a procedural noise"
+    bl_description = "Blends any number of selected nodes based on a procedural noise"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_options = {'REGISTER', 'UNDO'}
@@ -244,15 +244,8 @@ class NODE_OT_noise_blend(Operator):
         noise_blend(self, selected_nodes, None, self.mix_by)
         return {'FINISHED'}
 
-def draw_menu(self, context):
-    self.layout.operator(NODE_OT_noise_blend.bl_idname)
-
 def register():
     bpy.utils.register_class(NODE_OT_noise_blend)
-    bpy.types.NODE_MT_node.append(draw_menu)
-    bpy.types.NODE_MT_context_menu.append(draw_menu)
     
 def unregister():
     bpy.utils.unregister_class(NODE_OT_noise_blend)
-    bpy.types.NODE_MT_node.remove(draw_menu)
-    bpy.types.NODE_MT_context_menu.remove(draw_menu)
