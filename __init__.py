@@ -14,7 +14,7 @@
 bl_info = {
     "name": "Scattershot - Voronoi Image Texture Scattering",
     "author": "Jonathan Lampel",
-    "version": (1, 1),
+    "version": (1, 2),
     "blender": (2, 92, 0),
     "location": "Shader Editor > Node",
     "description": "Quickly distributes image textures around your model with several controls for randomization",
@@ -24,24 +24,30 @@ bl_info = {
 }
 
 import bpy
-from . import voronoi_scattering, unscatter, noise_blending
+from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping
 
 def draw_context_menu(self, context):
     self.layout.separator()
     self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
     self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
     self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
+    self.layout.operator(randomize_color.NODE_OT_randomize_col.bl_idname)
+    self.layout.operator(triplanar_mapping.NODE_OT_triplanar_mapping.bl_idname)
 
 def draw_node_menu(self, context):
     self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
     self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
     self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
+    self.layout.operator(randomize_color.NODE_OT_randomize_col.bl_idname)
+    self.layout.operator(triplanar_mapping.NODE_OT_triplanar_mapping.bl_idname)
     self.layout.separator()
 
 def register():
     voronoi_scattering.register()
     unscatter.register()
     noise_blending.register()
+    randomize_color.register()
+    triplanar_mapping.register()
     bpy.types.NODE_MT_context_menu.append(draw_context_menu)
     bpy.types.NODE_MT_node.prepend(draw_node_menu)
 
@@ -49,6 +55,8 @@ def unregister():
     voronoi_scattering.unregister()
     unscatter.unregister()
     noise_blending.unregister()
+    randomize_color.unregister()
+    triplanar_mapping.unregister()
     bpy.types.NODE_MT_context_menu.remove(draw_context_menu)
     bpy.types.NODE_MT_node.remove(draw_node_menu)
 
