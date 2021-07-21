@@ -486,7 +486,7 @@ def create_coordinates_node(self, selected_nodes):
         texture_coordinates.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 235]
         links.new(texture_coordinates.outputs['UV'], scatter_node.inputs['Vector'])
     else:
-        tri_planar = append_node(nodes, 'SS - Tri-Planar Mapping')
+        tri_planar = append_node(nodes, 'SS - Tri-Planar Scatter Mapping')
         tri_planar.label = "Tri-Planar Mapping"
         tri_planar.width = 150
         tri_planar.location = [scatter_node.location[0] - 200, scatter_node.location[1] - 345]
