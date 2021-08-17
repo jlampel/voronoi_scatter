@@ -15,9 +15,10 @@ def append_node(nodes, node_tree_name):
     return node_group
 
 def average_location(selected_nodes):
+    print( len(selected_nodes) )
     return [
         sum([x.location[0] for x in selected_nodes]) / len(selected_nodes),
-        sum([x.location[1] for x in selected_nodes]) / len(selected_nodes) + 150
+        sum([x.location[1] for x in selected_nodes]) / len(selected_nodes)
     ]
 
 def create_friendly_name(x):

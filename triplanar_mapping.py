@@ -15,10 +15,11 @@ def check_vector_input(selected_nodes):
 def create_triplanar_node(self, context):
     nodes = context.selected_nodes[0].id_data.nodes
     links = context.selected_nodes[0].id_data.links
+    textures = context.selected_nodes
     triplanar_node = append_node(nodes, 'SS - Tri-Planar Mapping')
     triplanar_node.location = [
-        min([x.location[0] for x in context.selected_nodes]) - 250, 
-        average_location(context.selected_nodes)[1] - 100
+        min([x.location[0] for x in textures]) - 250, 
+        average_location(textures)[1]
     ]
     triplanar_node.width = 200
     for node in context.selected_nodes: 
