@@ -31,7 +31,7 @@ def extract_images(self, selected_nodes):
         scatter_sources = get_scatter_sources([scatter_node])
         for scatter_source in scatter_sources:
             for node in scatter_source.node_tree.nodes:
-                if node.type == 'TEX_IMAGE': inner_textures.append(node)
+                if node.type == 'TEX_IMAGE' and node not in inner_textures: inner_textures.append(node)
         columns = 0
         for image_idx, image in enumerate(inner_textures):
             new_image = nodes.new("ShaderNodeTexImage")
