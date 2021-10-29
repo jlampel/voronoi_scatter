@@ -29,7 +29,7 @@ def create_randomize_node(context):
 
 
 class NODE_OT_randomize_col(Operator):
-    bl_label = "Scattershot: Noise Randomize HSV"
+    bl_label = "Scattershot: HSV Noise"
     bl_idname = "node.randomizecol"
     bl_description = "Randomizes the output of a node using a noise texture"
     bl_space_type = "NODE_EDITOR"
