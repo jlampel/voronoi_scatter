@@ -539,6 +539,7 @@ def cleanup_options(self, scatter_node, scatter_coordinates):
         links.new(nodes['Centered UVs'].outputs[0], nodes['Pattern Scale'].inputs[0])
     else:
         nodes.remove(nodes['Centered UVs'])
+        scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['UV Map'])
 
     if not self.use_edge_blur:
         scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Cell Blending'])
