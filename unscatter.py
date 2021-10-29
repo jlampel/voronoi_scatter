@@ -3,24 +3,7 @@ from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 from pprint import pprint
 from . import defaults
-
-def get_scatter_sources(selected_nodes):
-    nodes = selected_nodes[0].id_data.nodes
-    if selected_nodes:
-        selected_group_nodes = [x for x in nodes if x.select and x.type == 'GROUP']
-        scatter_sources = []
-        for group_node in selected_group_nodes:
-            for node in group_node.node_tree.nodes:
-                if node.type == 'GROUP':
-                    if 'SS - Scatter Source' in node.node_tree.name:
-                        scatter_sources.append(node)
-                    elif 'SS - Scatter Fast' in node.node_tree.name:
-                        for inner_node in node.node_tree.nodes:
-                            if inner_node.type == 'GROUP' and 'SS - Scatter Source' in inner_node.node_tree.name:
-                                scatter_sources.append(inner_node)
-        return scatter_sources
-    else:
-        return False
+from .utilities import get_scatter_sources
 
 def extract_images(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
@@ -38,11 +21,12 @@ def extract_images(self, selected_nodes):
             new_textures.append(new_image)
             new_image.image = image.image
             new_image.image.colorspace_settings.name = image.image.colorspace_settings.name
+            new_image.location = [scatter_node.location[0] + (250 * columns), scatter_node.location[1] - (255 * (image_idx % 4))] 
             new_image.projection = self.projection
             new_image.interpolation = self.interpolation
             new_image.extension = self.extension
-            new_image.location = [scatter_node.location[0] + (250 * columns), scatter_node.location[1] - (255 * (image_idx % 4))] 
             if (image_idx + 1) % 4 == 0: columns += 1
+        return new_textures
 
 def remove_scatter_nodes(selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
