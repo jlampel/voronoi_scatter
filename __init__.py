@@ -24,7 +24,7 @@ bl_info = {
 }
 
 import bpy
-from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping
+from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket
 
 def draw_context_menu(self, context):
     if context.area.ui_type == 'ShaderNodeTree' and context.space_data.shader_type != 'LINESTYLE':
@@ -45,6 +45,7 @@ def draw_node_menu(self, context):
         self.layout.separator()
 
 def register():
+    label_socket.register()
     voronoi_scattering.register()
     unscatter.register()
     noise_blending.register()
@@ -54,6 +55,7 @@ def register():
     bpy.types.NODE_MT_node.prepend(draw_node_menu)
 
 def unregister():
+    label_socket.unregister()
     voronoi_scattering.unregister()
     unscatter.unregister()
     noise_blending.unregister()
