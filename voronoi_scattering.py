@@ -6,7 +6,7 @@ from bpy.props import (BoolProperty, EnumProperty)
 from . import defaults
 from .noise_blending import noise_blend
 from .unscatter import extract_images
-from .utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources
+from .utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources, mode_toggle
    
 def sort_textures(self, selected_nodes):
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
@@ -72,7 +72,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         scatter_source.node_tree = bpy.data.node_groups['SS - Scatter Source Empty'].copy()
         scatter_source.node_tree.name = "SS - Scatter Source"
         scatter_source.name = "Scatter Source"
-        scatter_source.location = [-650, - (225 * idx) - (250 * channel_idx * channel_len)]
+        scatter_source.location = [nodes['Scatter Coordinates'].location[0] + 400, - (225 * idx) - (250 * channel_idx * channel_len)]
         return scatter_source
 
     def setup_image_nodes(scatter_source, channel, image_nodes):
@@ -865,6 +865,7 @@ def voronoi_scatter(self, context, prev_scatter_sources):
             if output.name in [x.name for x in prev_scatter_node.outputs]:
                 for link in prev_scatter_node.outputs[output.name].links:
                     links.new(output, prev_scatter_node.outputs[output.name].links[0].to_socket)
+        scatter_node.location = prev_scatter_node.location 
         nodes.remove(prev_scatter_node)
 
 class NODE_OT_scatter(Operator):
@@ -1006,10 +1007,13 @@ class NODE_OT_scatter(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
+        # switching modes prevents context errors 
+        prev_mode = mode_toggle(context, 'OBJECT')
         voronoi_scatter(self, context, get_scatter_sources(context.selected_nodes))
+        mode_toggle(context, prev_mode)
         return {'FINISHED'}
  
-def register():
+def register(): 
     bpy.utils.register_class(NODE_OT_scatter)
 
 def unregister():

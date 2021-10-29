@@ -1,6 +1,7 @@
 import bpy
 from bpy.types import (Operator)
 from pprint import pprint
+from .utilities import mode_toggle
 from . import defaults
 
 
@@ -240,8 +241,10 @@ class NODE_OT_noise_blend(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        selected_nodes = context.selected_nodes
-        noise_blend(self, selected_nodes, None, self.mix_by)
+        # switching modes prevents context errors 
+        prev_mode = mode_toggle(context, 'OBJECT')
+        noise_blend(self, context.selected_nodes, None, self.mix_by)
+        mode_toggle(context, prev_mode)
         return {'FINISHED'}
 
 def register():

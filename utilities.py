@@ -14,24 +14,6 @@ def append_node(nodes, node_tree_name):
     node_group.node_tree.name = node_tree_name
     return node_group
 
-def get_scatter_sources(selected_nodes):
-    nodes = selected_nodes[0].id_data.nodes
-    if selected_nodes:
-        selected_group_nodes = [x for x in nodes if x.select and x.type == 'GROUP']
-        scatter_sources = []
-        for group_node in selected_group_nodes:
-            for node in group_node.node_tree.nodes:
-                if node.type == 'GROUP':
-                    if 'SS - Scatter Source' in node.node_tree.name:
-                        scatter_sources.append(node)
-                    elif 'SS - Scatter Fast' in node.node_tree.name:
-                        for inner_node in node.node_tree.nodes:
-                            if inner_node.type == 'GROUP' and 'SS - Scatter Source' in inner_node.node_tree.name:
-                                scatter_sources.append(inner_node)
-        return scatter_sources
-    else:
-        return []
-
 def average_location(selected_nodes):
     return [
         sum([x.location[0] for x in selected_nodes]) / len(selected_nodes),
@@ -91,6 +73,39 @@ def create_sortable_name(x):
             without_spaces.append(word)
     name = without_spaces
     return name
+
+def get_scatter_sources(selected_nodes):
+    nodes = selected_nodes[0].id_data.nodes
+    if selected_nodes:
+        selected_group_nodes = [x for x in nodes if x.select and x.type == 'GROUP']
+        scatter_sources = []
+        for group_node in selected_group_nodes:
+            for node in group_node.node_tree.nodes:
+                if node.type == 'GROUP':
+                    if 'SS - Scatter Source' in node.node_tree.name:
+                        scatter_sources.append(node)
+                    elif 'SS - Scatter Fast' in node.node_tree.name:
+                        for inner_node in node.node_tree.nodes:
+                            if inner_node.type == 'GROUP' and 'SS - Scatter Source' in inner_node.node_tree.name:
+                                scatter_sources.append(inner_node)
+        return scatter_sources
+    else:
+        return []
+
+def mode_toggle(context, switch_to):
+    prev_mode = context.mode
+    switch = {
+        'EDIT_MESH': bpy.ops.object.editmode_toggle,
+        'SCULPT': bpy.ops.sculpt.sculptmode_toggle,
+        'PAINT_VERTEX': bpy.ops.paint.vertex_paint_toggle,
+        'PAINT_WEIGHT': bpy.ops.paint.weight_paint_toggle,
+        'PAINT_TEXTURE': bpy.ops.paint.texture_paint_toggle
+    }
+    if prev_mode != 'OBJECT':
+        switch[prev_mode]()
+    elif switch_to != 'OBJECT':
+        switch[switch_to]()
+    return prev_mode
 
 def remove_section(nodes, title):
     for node in nodes:

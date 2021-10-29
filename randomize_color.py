@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import (Operator)
-from .utilities import append_node
+from .utilities import append_node, mode_toggle
 
 def connect_vector(links, nodes, from_node, to_node):
     has_coordinates = False
@@ -41,7 +41,10 @@ class NODE_OT_randomize_col(Operator):
         return context.selected_nodes
 
     def execute(self, context):
+        # switching modes prevents context errors 
+        prev_mode = mode_toggle(context, 'OBJECT')
         create_randomize_node(context)
+        mode_toggle(context, prev_mode)
         return {'FINISHED'}
     
 def register():

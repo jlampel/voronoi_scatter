@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import (Operator)
-from .utilities import append_node, average_location
+from .utilities import append_node, average_location, mode_toggle
 
 def check_vector_input(selected_nodes):
     has_vector = False
@@ -43,7 +43,10 @@ class NODE_OT_triplanar_mapping(Operator):
         return check_vector_input(context.selected_nodes)
 
     def execute(self, context):
+        # switching modes prevents context errors 
+        prev_mode = mode_toggle(context, 'OBJECT')
         create_triplanar_node(self, context)
+        mode_toggle(context, prev_mode)
         return {'FINISHED'}
     
 def register():
