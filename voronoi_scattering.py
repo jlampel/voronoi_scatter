@@ -859,10 +859,12 @@ def voronoi_scatter(self, context, prev_scatter_sources):
         for input in scatter_node.inputs:
             if input.name in prev_values.keys():
                 input.default_value = prev_values[input.name]
+                if prev_scatter_node.inputs[input.name].links:
+                    links.new(input, prev_scatter_node.inputs[input.name].links[0].from_socket)
         for output in scatter_node.outputs:
             if output.name in [x.name for x in prev_scatter_node.outputs]:
-                for link_idx, link in enumerate(prev_scatter_node.outputs[output.name].links):
-                    links.new(output, prev_scatter_node.outputs[output.name].links[link_idx].to_socket)
+                for link in prev_scatter_node.outputs[output.name].links:
+                    links.new(output, prev_scatter_node.outputs[output.name].links[0].to_socket)
         nodes.remove(prev_scatter_node)
 
 class NODE_OT_scatter(Operator):
