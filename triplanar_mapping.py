@@ -24,7 +24,7 @@ def create_triplanar_node(self, context):
     triplanar_node.width = 200
     for node in context.selected_nodes: 
         if check_vector_input([node]):
-            links.new(triplanar_node.outputs[0], node.inputs['Vector'])
+            links.new(triplanar_node.outputs['Vector'], node.inputs['Vector'])
             if node.type == 'TEX_IMAGE' and node.interpolation == 'Linear':
                 self.report({'WARNING'}, 
                     'Image texture interpolation should be set to Closest or Cubic instead of Linear to avoid blending issues'
