@@ -102,8 +102,9 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
                 image_node.extension = 'REPEAT'
 
             noncolor_channels = ['Normal', 'Bump']
-            if self.use_pbr and channel in noncolor_channels:
-                image_node.image.colorspace_settings.name = 'Non-Color'
+            uses_default_colorspace = image_nodes[image_node_idx].image.colorspace_settings.name in defaults.color_spaces
+            if self.use_pbr and channel in noncolor_channels and uses_default_colorspace:
+                    image_node.image.colorspace_settings.name = 'Non-Color'
             else:
                 image_node.image.colorspace_settings.name = image_nodes[image_node_idx].image.colorspace_settings.name
 
@@ -426,6 +427,7 @@ def correct_normals(self, scatter_node, prev_outputs):
         links.new(nodes['Scatter Coordinates'].outputs['Random Color'], normal_node.inputs['Random Color'])
         links.new(nodes['Group Input'].outputs['Texture Rotation'], normal_node.inputs['Rotation'])
         links.new(nodes['Group Input'].outputs['Random Texture Rotation'], normal_node.inputs['Random Rotation'])
+        links.new(nodes['Group Input'].outputs['Normal Strength'], normal_node.inputs['Strength'])
         links.new(normal_node.outputs[0], nodes['Group Output'].inputs['Normal'])
         return normal_node.outputs[0]
 
@@ -437,6 +439,7 @@ def correct_normals(self, scatter_node, prev_outputs):
         links.new(nodes['Scatter Coordinates'].outputs['Random Color'], normal_node.inputs['Random Color'])
         links.new(nodes['Group Input'].outputs['Texture Rotation'], normal_node.inputs['Rotation'])
         links.new(nodes['Group Input'].outputs['Random Texture Rotation'], normal_node.inputs['Random Rotation'])
+        links.new(nodes['Group Input'].outputs['Normal Strength'], normal_node.inputs['Strength'])
         links.new(normal_node.outputs[0], nodes['Group Output'].inputs['Normal'])
         return normal_node.outputs[0]
 
@@ -527,7 +530,8 @@ def cleanup_layering(self, scatter_node, scatter_sources):
     if self.layering != 'overlapping':
         nodes['Scatter Coordinates'].node_tree.nodes['Location Origin'].inputs[1].default_value = [0.5, 0.5, 0]
     if self.layering == 'simple' or self.layering == 'blended':
-        nodes['Scatter Coordinates'].node_tree.nodes['Location Range'].inputs['To Max'].default_value = 3
+        nodes['Scatter Coordinates'].node_tree.nodes['Location Range X'].inputs['To Max'].default_value = 3
+        nodes['Scatter Coordinates'].node_tree.nodes['Location Range Y'].inputs['To Max'].default_value = 3
 
 def cleanup_options(self, scatter_node, scatter_coordinates):
     nodes = scatter_node.node_tree.nodes
@@ -597,6 +601,9 @@ def cleanup_sockets(self, scatter_node, transparency):
 
     if not transparency:
         node_tree_inputs.remove(node_tree_inputs['Transparency'])
+
+    if 'Normal' not in [x.name for x in scatter_node.outputs] and 'Normal Strength' in [x.name for x in node_tree_inputs]:
+        node_tree_inputs.remove(node_tree_inputs['Normal Strength'])
 
     for output in scatter_node.outputs:
         if output.name in defaults.value_channels:

@@ -14,8 +14,8 @@
 bl_info = {
     "name": "Scattershot - Voronoi Image Texture Scattering",
     "author": "Jonathan Lampel",
-    "version": (1, 3),
-    "blender": (2, 93, 0),
+    "version": (1, 4),
+    "blender": (3, 0, 0),
     "location": "Shader Editor > Node",
     "description": "Quickly distributes image textures around your model with several controls for randomization",
     "warning": "",
@@ -23,7 +23,7 @@ bl_info = {
     "category": "Node",
 }
 
-import bpy
+import bpy, sys
 from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket
 
 def draw_context_menu(self, context):
@@ -44,6 +44,12 @@ def draw_node_menu(self, context):
         self.layout.operator(triplanar_mapping.NODE_OT_triplanar_mapping.bl_idname)
         self.layout.separator()
 
+def cleanse_modules():
+    # Based on https://devtalk.blender.org/t/plugin-hot-reload-by-cleaning-sys-modules/20040
+    for module_name in sorted(sys.modules.keys()):
+        if module_name.startswith(__name__):
+            del sys.modules[module_name]
+
 def register():
     label_socket.register()
     voronoi_scattering.register()
@@ -63,6 +69,7 @@ def unregister():
     triplanar_mapping.unregister()
     bpy.types.NODE_MT_context_menu.remove(draw_context_menu)
     bpy.types.NODE_MT_node.remove(draw_node_menu)
+    cleanse_modules()
 
 if __name__ == "__main__":
     register()

@@ -1,6 +1,9 @@
 # These are the file extensions that get stripped out of the name when checking for a PBR texture
 file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
 
+# Some custom builds of blender use other color spaces
+color_spaces = ['Filmic Log', 'Linear', 'Linear ACES', 'Non-Color', 'Raw', 'sRGB', 'XYZ']
+
 section_labels = ["Transformation", "Cell Randomization", "Texture Randomization", "Transparency"]
 
 # Including any of the following words between separaters [' ', '-', '_'] will add the texture to the corresponding PBR channel
@@ -60,12 +63,14 @@ layering = {
     'coordinates': {
         'Cell Scale': 2,
         'Random Cell Shape': 1,
-        'Random Texture Location': 1,
+        'Random Texture Location X': 1,
+        'Random Texture Location Y': 1,
     },
     'simple': {
         'Cell Scale': 2,
         'Random Cell Shape': 1,
-        'Random Texture Location': 1,
+        'Random Texture Location X': 1,
+        'Random Texture Location Y': 1,
     },
     'blended': {
         'Mix Noise Scale': 1,
@@ -74,7 +79,8 @@ layering = {
         'Mix Noise Blending': 0.25,
         'Cell Scale': 2,
         'Random Cell Shape': 1,
-        'Random Texture Location': 1,
+        'Random Texture Location X': 1,
+        'Random Texture Location Y': 1,
     },
     'simple_alpha': {
         'Texture Scale': 2,
