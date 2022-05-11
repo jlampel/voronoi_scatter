@@ -1,11 +1,11 @@
 ---
-excerpt: Documentation for the Noise Blending function of the Scattershot add-on for Blender.
+excerpt: Documentation for the Noise Mix function of the Scattershot add-on for Blender.
 nav_order: 2
 nav_exclude: false
 search_exclude: false
 ---
 
-## Noise Blending
+## Noise Mix
 
 The Noise Blend operator, also found in the Node menu and RMB context menu, allows you to instantly mix together any number of nodes with a noise pattern. The only option, Mix Outputs By, determines which outputs of the selected nodes get mixed together.
 
