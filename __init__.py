@@ -19,7 +19,7 @@ bl_info = {
     "location": "Shader Editor > Node",
     "description": "Quickly distributes image textures around your model with several controls for randomization",
     "warning": "",
-    "wiki_url": "",
+    "wiki_url": "https://jlampel.github.io/voronoi_scatter/",
     "category": "Node",
 }
 
