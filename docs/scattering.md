@@ -80,4 +80,4 @@ This also randomizes the HSV of the texture, but it's based on a noise texture t
 
 ## Modifying the Defaults
 
-If you would like to change any of the defaults to fit your particular workflow, just edit the defaults.py file inside the addon.
+If you would like to change any of the scatter node's defaults to fit your particular workflow, just edit the defaults.py file inside the addon.

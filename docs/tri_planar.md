@@ -1,5 +1,5 @@
 ---
-excerpt: Documentation for the Voronoi Scatter function of the Scattershot add-on for Blender.
+excerpt: Documentation for the Tri-Planar Mapping function of the Scattershot add-on for Blender.
 nav_order: 4
 nav_exclude: false
 search_exclude: false
