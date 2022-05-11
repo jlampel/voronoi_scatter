@@ -1,8 +1,7 @@
 ---
-excerpt: Short description to include as an opening and SEO metatags.
+excerpt: Documentation for the Voronoi Scatter function of the Scattershot add-on for Blender.
 nav_order: 1
 nav_exclude: false
-canonical_url: https://www.google.com
 search_exclude: false
 ---
 
@@ -10,8 +9,7 @@ search_exclude: false
 
 Once you install the Scattershot addon, you'll find a new operator called Voronoi Scatter in the Node menu of the Shader Editor. To access it more quickly, right quick and add it to your quick favorites (Q) menu or use the right click context menu.
 
-> [!NOTE]
-> Note: the right click context menu does not show the addon's settings - it will use the default or last used settings.
+> *Note: the right click context menu does not show the addon's settings - it will use the default or last used settings.*
 
 You must have one or more image textures selected in order to use the Voronoi Scatter command. The tooltips for the settings are pretty descriptive, so hover your mouse over each button if you forget what it does. Click 'OK' and your textures will be converted into a scatter node.
 
@@ -62,3 +60,18 @@ This applies a noise to the resulting texture coordinates, so that each instance
 ## Random Color
 
 This enables controls for randomizing the hue, saturation, and value of the texture in each cell. It will also allow randomization for some PBR channels such as roughness when using Detect PBR.
+
+## Detect PBR Channels
+
+Check this on when working with PBR texture sets and Scattershot will automatically group the textures together and create an output for each channel. To be recognized as a PBR texture, the name of the image must have a word that indicates which channel it should be a part of, surrounded by a separator like a space, dash, or underline. File extensions and numbers will be stripped out and capitalization does not matter.
+
+Examples:
+- red-rock_color.exr
+- window-rough.png
+- dirt_NRM.exr
+
+The full list of accepted terms can be found (and changed!) in the file defaults.py.
+
+## Modifying the Defaults
+
+If you would like to change any of the defaults to fit your particular workflow, just edit the defaults.py file inside the addon.
