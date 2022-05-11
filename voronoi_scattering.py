@@ -920,22 +920,22 @@ class NODE_OT_scatter(Operator):
         default = defaults.scatter['use_edge_blur'],
     )
     use_edge_warp: bpy.props.BoolProperty(
-        name = "Cell Edge Warp",
+        name = "Cell Warping",
         description = "Adds ability to distort the edges of each voronoi cell without distorting the texture. This helps seams between cells appear less obvious, especially for tileable textures",
         default = defaults.scatter['use_edge_warp'],
     )
     use_texture_warp: bpy.props.BoolProperty(
-        name = "Texture Warp",
+        name = "Texture Warping",
         description = "Adds ability to distort the shape of the resulting texture",
         default = defaults.scatter['use_texture_warp'],
     )
     use_noise_col: bpy.props.BoolProperty(
-        name = "Random Noise HSV",
+        name = "Noise HSV",
         description = "Adds easy controls for varying the color based on a noise pattern",
         default = defaults.scatter['use_noise_col'],
     )
     use_random_col: bpy.props.BoolProperty(
-        name = "Random Cell HSV",
+        name = "Cell HSV",
         description = "Adds easy controls for varying the color of each instance",
         default = defaults.scatter['use_random_col'],
     )
