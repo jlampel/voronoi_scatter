@@ -7,5 +7,8 @@ search_exclude: false
 
 # Changelog
 
-## v1.5
+## v1.6
 - Updated documentation and switched to using GitHub Pages
+- Fixed issue with socket colors reverting to yellow
+- Moved operators to a sub-menu
+- Added error message if missing node groups
