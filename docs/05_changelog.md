@@ -12,6 +12,7 @@ search_exclude: false
 - Fixed issue with socket colors reverting to yellow
 - Moved operators to a sub-menu
 - Added error message if missing node groups
+- Added some node groups as assets for the asset browser
 
 ## v1.5
 - Fixed compatibility issue with ACES color management
