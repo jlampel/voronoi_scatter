@@ -14,7 +14,6 @@ def append_node(self, nodes, node_tree_name):
     except:
         self.report({'ERROR'}, 'Scattershot nodes not detected. Please download from the Blender Market and install again.')
         nodes.remove(node_group)
-        self.cancel()
 
     appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
     appended_node = [x for x in appended_nodetrees if node_tree_name in x.name][0]

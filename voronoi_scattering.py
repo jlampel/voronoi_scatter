@@ -44,7 +44,7 @@ def sort_textures(self, selected_nodes):
         )
     return filtered_textures
 
-def append_scatter_node(self, selected_nodes):
+def append_scatter_node(self, context, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
     if self.layering == 'overlapping': 
         scatter_node = append_node(self, nodes, 'SS - Scatter Overlapping')
@@ -240,7 +240,7 @@ def blend_colors(self, scatter_node, scatter_sources):
     else:
         return color_results
 
-def randomize_cell_colors(self, scatter_node, scatter_sources, prev_outputs):
+def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_outputs):
     nodes = scatter_node.node_tree.nodes
     links = scatter_node.node_tree.links
     inputs = scatter_node.node_tree.inputs
@@ -318,7 +318,7 @@ def randomize_cell_colors(self, scatter_node, scatter_sources, prev_outputs):
 
     return color_results
 
-def randomize_texture_colors(self, scatter_node, scatter_sources, prev_outputs):
+def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_outputs):
     nodes = scatter_node.node_tree.nodes
     links = scatter_node.node_tree.links
     inputs = scatter_node.node_tree.inputs
@@ -420,7 +420,7 @@ def randomize_texture_colors(self, scatter_node, scatter_sources, prev_outputs):
 
     return color_results
 
-def correct_normals(self, scatter_node, prev_outputs):
+def correct_normals(self, context, scatter_node, prev_outputs):
     nodes = scatter_node.node_tree.nodes
     links = scatter_node.node_tree.links
     color_results = {}
@@ -655,16 +655,16 @@ def remove_images(selected_nodes):
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
     for texture in textures: nodes.remove(texture)
 
-def setup_scatter_node(self, selected_nodes, should_remove_images=True):
+def setup_scatter_node(self, context, selected_nodes, should_remove_images=True):
     transparency = (self.layering == 'simple_alpha' or self.layering == 'layered' or self.layering == 'overlapping')
     sorted_textures = sort_textures(self, selected_nodes)
-    scatter_node = append_scatter_node(self, selected_nodes)
+    scatter_node = append_scatter_node(self, context, selected_nodes)
     scatter_coordinates = create_scatter_coordinates(scatter_node)
     scatter_sources = create_scatter_sources(self, scatter_node, sorted_textures, transparency)
     blending_results = blend_colors(self, scatter_node, scatter_sources)
-    randomize_cell_outputs = randomize_cell_colors(self, scatter_node, scatter_sources, blending_results)
-    randomize_color_outputs = randomize_texture_colors(self, scatter_node, scatter_sources, randomize_cell_outputs)
-    corrected_normal_outputs = correct_normals(self, scatter_node, randomize_color_outputs)
+    randomize_cell_outputs = randomize_cell_colors(self, context, scatter_node, scatter_sources, blending_results)
+    randomize_color_outputs = randomize_texture_colors(self, context, scatter_node, scatter_sources, randomize_cell_outputs)
+    corrected_normal_outputs = correct_normals(self, context, scatter_node, randomize_color_outputs)
     manage_alpha(self, scatter_node, scatter_sources, blending_results, transparency)
     cleanup_layering(self, scatter_node, scatter_sources)
     cleanup_options(self, scatter_node, scatter_coordinates)
@@ -673,7 +673,7 @@ def setup_scatter_node(self, selected_nodes, should_remove_images=True):
     if should_remove_images: remove_images(selected_nodes)
     return scatter_node
 
-def create_coordinates_node(self, selected_nodes):
+def create_coordinates_node(self, context, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
     links = selected_nodes[0].id_data.links
 
@@ -733,12 +733,12 @@ def create_coordinates_node(self, selected_nodes):
 
     return scatter_node
 
-def create_layered_node(self, selected_nodes):
+def create_layered_node(self, context, selected_nodes):
 
     def create_master_node():
         nodes = selected_nodes[0].id_data.nodes
         # creating the outer node like this is wasteful, but Blender crashes if creating so many node tree inputs via python
-        master_node = setup_scatter_node(self, selected_nodes, should_remove_images=False)
+        master_node = setup_scatter_node(self, context, selected_nodes, should_remove_images=False)
         master_node.node_tree.name = 'SS - Scatter Layered'
         master_node.location = average_location(selected_nodes)
         for node in master_node.node_tree.nodes:
@@ -769,7 +769,7 @@ def create_layered_node(self, selected_nodes):
             tex_sets.append(tex_set)
         scatter_nodes = []
         for set_idx, set in enumerate(tex_sets):
-            scatter_node = setup_scatter_node(self, set)
+            scatter_node = setup_scatter_node(self, context, set)
             scatter_node.location = [300 * set_idx, 0]
             scatter_nodes.append(scatter_node)
         return scatter_nodes
@@ -854,11 +854,11 @@ def voronoi_scatter(self, context, prev_scatter_sources):
         selected_nodes = extract_images(self, selected_nodes)
 
     if self.layering == 'coordinates':
-        scatter_node = create_coordinates_node(self, selected_nodes)
+        scatter_node = create_coordinates_node(self, context, selected_nodes)
     elif self.layering == 'layered':
-        scatter_node = create_layered_node(self, selected_nodes)
+        scatter_node = create_layered_node(self, context, selected_nodes)
     else:
-        scatter_node = setup_scatter_node(self, selected_nodes)
+        scatter_node = setup_scatter_node(self, context, selected_nodes)
     setup_defaults(self, scatter_node)
 
     if prev_values:
@@ -1011,9 +1011,6 @@ class NODE_OT_scatter(Operator):
             
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
-
-    def cancel(self, context):
-        return {'CANCELLED'}
 
     def execute(self, context):
         # switching modes prevents context errors 
