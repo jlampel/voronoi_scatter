@@ -3,11 +3,19 @@ import re
 import bpy 
 from .defaults import file_types, texture_names
 
-def append_node(nodes, node_tree_name):
+def append_node(self, nodes, node_tree_name):
     path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
+
     node_group = nodes.new("ShaderNodeGroup")
     initial_nodetrees = set(bpy.data.node_groups)
-    bpy.ops.wm.append(filename=node_tree_name, directory=path)
+
+    try:
+        bpy.ops.wm.append(filename=node_tree_name, directory=path)
+    except:
+        self.report({'ERROR'}, 'Scattershot nodes not detected. Please download from the Blender Market and install again.')
+        nodes.remove(node_group)
+        self.cancel()
+
     appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
     appended_node = [x for x in appended_nodetrees if node_tree_name in x.name][0]
     node_group.node_tree = bpy.data.node_groups[appended_node.name].copy()
