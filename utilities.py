@@ -3,7 +3,7 @@ import re
 import bpy 
 from .defaults import file_types, texture_names
 
-def append_node(self, context, nodes, node_tree_name):
+def append_node(self, nodes, node_tree_name):
     path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
 
     node_group = nodes.new("ShaderNodeGroup")

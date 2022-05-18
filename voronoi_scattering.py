@@ -47,10 +47,10 @@ def sort_textures(self, selected_nodes):
 def append_scatter_node(self, context, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
     if self.layering == 'overlapping': 
-        scatter_node = append_node(self, context, nodes, 'SS - Scatter Overlapping')
+        scatter_node = append_node(self, nodes, 'SS - Scatter Overlapping')
         scatter_node.label = "Scatter Overlapping"
     else:
-        scatter_node = append_node(self, context, nodes, 'SS - Scatter Fast')
+        scatter_node = append_node(self, nodes, 'SS - Scatter Fast')
         scatter_node.label = "Scatter Fast"
     scatter_node.width = 250
     scatter_node.location = [average_location(selected_nodes)[0], average_location(selected_nodes)[1] + 150]
@@ -248,7 +248,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
 
     def create_randomize_node(prev_node, scatter_source, channel):
         if channel in defaults.value_channels:
-            randomize_node = append_node(self, context, nodes, "SS - Randomize Cell Value")
+            randomize_node = append_node(self, nodes, "SS - Randomize Cell Value")
             randomize_node.location = [prev_node.location[0] + 250, prev_node.location[1]]
             links.new(prev_node.outputs[channel], randomize_node.inputs[0])
             links.new(scatter_source.outputs[1], randomize_node.inputs[1])
@@ -256,7 +256,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
             randomize_node.inputs['Random Seed'].default_value = random()
             links.new(randomize_node.outputs[0], nodes['Group Output'].inputs[channel])
         else:
-            randomize_node = append_node(self, context, nodes, "SS - Randomize Cell HSV")
+            randomize_node = append_node(self, nodes, "SS - Randomize Cell HSV")
             randomize_node.location = [prev_node.location[0] + 250, prev_node.location[1]]
             links.new(prev_node.outputs[channel], randomize_node.inputs[0])
             links.new(scatter_source.outputs[1], randomize_node.inputs[1])
@@ -327,7 +327,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
 
     def create_randomize_hsv(color_output, channel):
         if channel in defaults.value_channels:
-            randomize_node = append_node(self, context, nodes, "SS - Noise Randomize Value")
+            randomize_node = append_node(self, nodes, "SS - Noise Randomize Value")
             randomize_node.location = [color_output.node.location[0] + 250, color_output.node.location[1]]
             links.new(color_output, randomize_node.inputs[0])
             links.new(group_inputs[channel + ' Noise Scale'], randomize_node.inputs['Noise Scale'])
@@ -337,7 +337,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
             links.new(nodes['Scaled Coordinates'].outputs[0], randomize_node.inputs['Vector'])
             links.new(randomize_node.outputs[0], nodes['Group Output'].inputs[channel])
         else:
-            randomize_node = append_node(self, context, nodes, "SS - Noise Randomize HSV")
+            randomize_node = append_node(self, nodes, "SS - Noise Randomize HSV")
             randomize_node.location = [color_output.node.location[0] + 250, color_output.node.location[1]]
             links.new(color_output, randomize_node.inputs[0])
             links.new(group_inputs['Color Noise Scale'], randomize_node.inputs['Noise Scale'])
@@ -426,7 +426,7 @@ def correct_normals(self, context, scatter_node, prev_outputs):
     color_results = {}
 
     def fix_uv_normals(normal_map):
-        normal_node = append_node(self, context, nodes, 'SS - UV Normal Map')
+        normal_node = append_node(self, nodes, 'SS - UV Normal Map')
         normal_node.location = [normal_map.node.location[0] + 250, normal_map.node.location[1]]
         links.new(normal_map, normal_node.inputs[0])
         links.new(nodes['Scatter Coordinates'].outputs['Random Color'], normal_node.inputs['Random Color'])
@@ -437,7 +437,7 @@ def correct_normals(self, context, scatter_node, prev_outputs):
         return normal_node.outputs[0]
 
     def fix_triplanar_normals(normal_map):
-        normal_node = append_node(self, context, nodes, 'SS - Tri-Planar Normal Map')
+        normal_node = append_node(self, nodes, 'SS - Tri-Planar Normal Map')
         normal_node.location = [normal_map.node.location[0] + 250, normal_map.node.location[1]]
         links.new(normal_map, normal_node.inputs[0])
         links.new(nodes['Tri-Planar Mapping'].outputs['Axes'], normal_node.inputs['Axes'])
@@ -679,7 +679,7 @@ def create_coordinates_node(self, context, selected_nodes):
 
     # append and attach node 
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
-    scatter_node = append_node(self, context, nodes, 'SS - Scatter Mapping')
+    scatter_node = append_node(self, nodes, 'SS - Scatter Mapping')
     scatter_node.label = "Scatter Mapping"
     scatter_node.width = 250
     scatter_node.location = [
@@ -696,7 +696,7 @@ def create_coordinates_node(self, context, selected_nodes):
         texture_coordinates.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 235]
         links.new(texture_coordinates.outputs['UV'], scatter_node.inputs['Vector'])
     else:
-        tri_planar = append_node(self, context, nodes, 'SS - Tri-Planar Mapping')
+        tri_planar = append_node(self, nodes, 'SS - Tri-Planar Mapping')
         tri_planar.label = "Tri-Planar Mapping"
         tri_planar.width = 200
         tri_planar.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 250]

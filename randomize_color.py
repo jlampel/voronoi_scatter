@@ -14,11 +14,11 @@ def connect_vector(links, nodes, from_node, to_node):
         coordinates.location = [to_node.location[0] - 175, to_node.location[1] - from_node.height - 200]
         links.new(coordinates.outputs['Object'], to_node.inputs['Vector'])
 
-def create_randomize_node(context):
+def create_randomize_node(self, context):
     nodes = context.selected_nodes[0].id_data.nodes
     links = context.selected_nodes[0].id_data.links
     for node in context.selected_nodes:
-        randomize_node = append_node(nodes, 'SS - Noise Randomize HSV')
+        randomize_node = append_node(self, nodes, 'SS - Noise Randomize HSV')
         randomize_node.width = 200
         randomize_node.location = [node.location[0] + node.width + 50, node.location[1]] 
         if node.outputs[0].links:
@@ -43,7 +43,7 @@ class NODE_OT_randomize_col(Operator):
     def execute(self, context):
         # switching modes prevents context errors 
         prev_mode = mode_toggle(context, 'OBJECT')
-        create_randomize_node(context)
+        create_randomize_node(self, context)
         mode_toggle(context, prev_mode)
         return {'FINISHED'}
     

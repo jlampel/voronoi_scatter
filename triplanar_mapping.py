@@ -16,7 +16,7 @@ def create_triplanar_node(self, context):
     nodes = context.selected_nodes[0].id_data.nodes
     links = context.selected_nodes[0].id_data.links
     textures = context.selected_nodes
-    triplanar_node = append_node(nodes, 'SS - Tri-Planar Mapping')
+    triplanar_node = append_node(self, nodes, 'SS - Tri-Planar Mapping')
     triplanar_node.location = [
         min([x.location[0] for x in textures]) - 250, 
         average_location(textures)[1]
