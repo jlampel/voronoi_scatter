@@ -31,7 +31,7 @@ def create_triplanar_node(self, context):
                 )
 
 class NODE_OT_triplanar_mapping(Operator):
-    bl_label = "Scattershot: Tri-Planar Mapping"
+    bl_label = "Tri-Planar Mapping"
     bl_idname = "node.triplanarmapping"
     bl_description = "Adds a tri-planar mapping node and connects it to the selected nodes"
     bl_space_type = "NODE_EDITOR"

@@ -205,7 +205,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
 
 
 class NODE_OT_noise_blend(Operator):
-    bl_label = "Scattershot: Noise Mix"
+    bl_label = "Noise Mix"
     bl_idname = "node.noise_blend"
     bl_description = "Blends any number of selected nodes based on a procedural noise"
     bl_space_type = "NODE_EDITOR"

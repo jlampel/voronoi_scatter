@@ -875,7 +875,7 @@ def voronoi_scatter(self, context, prev_scatter_sources):
         nodes.remove(prev_scatter_node)
 
 class NODE_OT_scatter(Operator):
-    bl_label = "Scattershot: Voronoi Scatter"
+    bl_label = "Voronoi Scatter"
     bl_idname = "node.scatter"
     bl_description = "Scatters all selected image textures"
     bl_space_type = "NODE_EDITOR"

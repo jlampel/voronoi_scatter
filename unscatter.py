@@ -35,7 +35,7 @@ def remove_scatter_nodes(selected_nodes):
             nodes.remove(node)
 
 class NODE_OT_unscatter(Operator):
-    bl_label = "Scattershot: Un-Scatter"
+    bl_label = "Un-Scatter"
     bl_idname = "node.unscatter"
     bl_description = "Reverses Voronoi Scatter"
     bl_space_type = "NODE_EDITOR"

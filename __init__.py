@@ -24,25 +24,7 @@ bl_info = {
 }
 
 import bpy, sys
-from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket
-
-def draw_context_menu(self, context):
-    if context.area.ui_type == 'ShaderNodeTree' and context.space_data.shader_type != 'LINESTYLE':
-        self.layout.separator()
-        self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
-        self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
-        self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
-        self.layout.operator(randomize_color.NODE_OT_randomize_col.bl_idname)
-        self.layout.operator(triplanar_mapping.NODE_OT_triplanar_mapping.bl_idname)
-
-def draw_node_menu(self, context):
-    if context.area.ui_type == 'ShaderNodeTree'and context.space_data.shader_type != 'LINESTYLE':
-        self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
-        self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
-        self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
-        self.layout.operator(randomize_color.NODE_OT_randomize_col.bl_idname)
-        self.layout.operator(triplanar_mapping.NODE_OT_triplanar_mapping.bl_idname)
-        self.layout.separator()
+from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket, interface
 
 def cleanse_modules():
     # Based on https://devtalk.blender.org/t/plugin-hot-reload-by-cleaning-sys-modules/20040
@@ -57,8 +39,7 @@ def register():
     noise_blending.register()
     randomize_color.register()
     triplanar_mapping.register()
-    bpy.types.NODE_MT_context_menu.append(draw_context_menu)
-    bpy.types.NODE_MT_node.prepend(draw_node_menu)
+    interface.register()
 
 def unregister():
     label_socket.unregister()
@@ -67,8 +48,7 @@ def unregister():
     noise_blending.unregister()
     randomize_color.unregister()
     triplanar_mapping.unregister()
-    bpy.types.NODE_MT_context_menu.remove(draw_context_menu)
-    bpy.types.NODE_MT_node.remove(draw_node_menu)
+    interface.register()
     cleanse_modules()
 
 if __name__ == "__main__":
