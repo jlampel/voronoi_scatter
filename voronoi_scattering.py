@@ -165,7 +165,12 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         links.new(nodes['Density Input'].outputs[0], scatter_source.inputs['Density'])
         links.new(nodes['Group Input'].outputs['Alpha Clip'], scatter_source.inputs['Alpha Clip'])
         if channel not in scatter_node.node_tree.outputs:
-            scatter_node.node_tree.outputs.new("NodeSocketColor", channel)
+            if channel == 'Normal':
+                scatter_node.node_tree.outputs.new("NodeSocketVector", channel)
+            elif channel in defaults.value_channels: 
+                scatter_node.node_tree.outputs.new("NodeSocketFloat", channel)
+            else:
+                scatter_node.node_tree.outputs.new("NodeSocketColor", channel)
         links.new(scatter_source.outputs[0], nodes['Group Output'].inputs[channel])
 
     scatter_sources = {}
@@ -604,12 +609,6 @@ def cleanup_sockets(self, scatter_node, transparency):
 
     if 'Normal' not in [x.name for x in scatter_node.outputs] and 'Normal Strength' in [x.name for x in node_tree_inputs]:
         node_tree_inputs.remove(node_tree_inputs['Normal Strength'])
-
-    for output in scatter_node.outputs:
-        if output.name in defaults.value_channels:
-            output.type = 'VALUE'
-        elif output.name == 'Normal':
-            output.type = 'VECTOR'
 
 def connect_shader(self, selected_nodes, scatter_node):
     nodes = selected_nodes[0].id_data.nodes
