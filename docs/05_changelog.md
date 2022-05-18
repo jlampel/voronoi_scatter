@@ -12,3 +12,13 @@ search_exclude: false
 - Fixed issue with socket colors reverting to yellow
 - Moved operators to a sub-menu
 - Added error message if missing node groups
+
+## v1.5
+- Fixed compatibility issue with ACES color management
+
+## v1.4 
+- Fixed normal map rotation limitations
+- Added re-scattering of existing scatter nodes
+- Introduced Noise HSV 
+- Grouped scatter node controls
+- Fixed error when not in Object Mode
