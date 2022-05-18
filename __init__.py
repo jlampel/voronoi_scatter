@@ -14,8 +14,8 @@
 bl_info = {
     "name": "Scattershot - Voronoi Image Texture Scattering",
     "author": "Jonathan Lampel",
-    "version": (1, 5),
-    "blender": (3, 0, 0),
+    "version": (1, 6),
+    "blender": (3, 1, 0),
     "location": "Shader Editor > Node",
     "description": "Quickly distributes image textures around your model with several controls for randomization",
     "warning": "",
