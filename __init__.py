@@ -24,7 +24,7 @@ bl_info = {
 }
 
 import bpy, sys
-from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket, interface
+from . import interface
 
 def cleanse_modules():
     # Based on https://devtalk.blender.org/t/plugin-hot-reload-by-cleaning-sys-modules/20040
@@ -33,22 +33,10 @@ def cleanse_modules():
             del sys.modules[module_name]
 
 def register():
-    label_socket.register()
-    voronoi_scattering.register()
-    unscatter.register()
-    noise_blending.register()
-    randomize_color.register()
-    triplanar_mapping.register()
     interface.register()
 
 def unregister():
-    label_socket.unregister()
-    voronoi_scattering.unregister()
-    unscatter.unregister()
-    noise_blending.unregister()
-    randomize_color.unregister()
-    triplanar_mapping.unregister()
-    interface.register()
+    interface.unregister()
     cleanse_modules()
 
 if __name__ == "__main__":

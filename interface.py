@@ -1,6 +1,6 @@
 import bpy
 
-from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping
+from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket
 
 class NODE_MT_scattershot(bpy.types.Menu):
     bl_label = 'Scattershot'
@@ -24,11 +24,23 @@ def draw_node_menu(self, context):
         self.layout.separator()
 
 def register():
+    label_socket.register()
+    voronoi_scattering.register()
+    unscatter.register()
+    noise_blending.register()
+    randomize_color.register()
+    triplanar_mapping.register()
     bpy.utils.register_class(NODE_MT_scattershot)
     bpy.types.NODE_MT_context_menu.append(draw_context_menu)
     bpy.types.NODE_MT_node.prepend(draw_node_menu)
 
 def unregister():
+    label_socket.unregister()
+    voronoi_scattering.unregister()
+    unscatter.unregister()
+    noise_blending.unregister()
+    randomize_color.unregister()
+    triplanar_mapping.unregister()
     bpy.utils.unregister_class(NODE_MT_scattershot)
     bpy.types.NODE_MT_context_menu.remove(draw_context_menu)
     bpy.types.NODE_MT_node.remove(draw_node_menu)
