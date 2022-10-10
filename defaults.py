@@ -17,7 +17,7 @@ texture_names = {
     'emit': ['emit', 'emission', 'emissive', 'glow', 'glw', 'e'],
     'alpha': ['alpha', 'transparent', 'transparency', 'opacity'],
     'bump': ['bmp', 'bump', 'height', 'h', 'dp', 'disp', 'displacement'],
-    'normal': ['normal', 'nrm', 'n', 'nrlm']
+    'normal': ['normal', 'nrm', 'n', 'nrlm', 'nor']
 }
 
 # Include any texture types that should only have their value adjusted and not their hue or saturation
