@@ -15,6 +15,8 @@ If you would like to change your scatter node's settings after the fact, such as
 
 To reverse the process, you can always select the scatter node and use the Un-Scatter command that is in the Node menu or in the right click context menu.
 
+You can include a Principled BSDF in your selection while scattering if you would like the resulting scatter node to be automatically hooked up.
+
 ## Mapping
 
 The scattering can be done according to your object's UVs or it can be projected from all sides with tri-planar mapping. Tri-planar projection is the same thing as box mapping, but Scattershot uses a custom implementation instead of Blender's box mapping because it allows for important options like random rotation (you can't rotate a box mapped texture) and correcting the aspect ratio of non-square textures. 
@@ -35,7 +37,7 @@ This setting has the biggest impact on performance and changes several things ab
 
 **Layered Alpha** is the fastest way to get textures to overlap. It simply creates an Interspersed Alpha scatter node for each texture or texture set and chains them all together inside one parent scatter node. This creates a layering effect where the first texture set gets overlapped by the second, which gets overlapped by the third, and so on.
 
-**Overlapping Alpha** enables textures to actually overlap their immediate neighbors. This allows for great looking results and appears much more randomized than Layered Alpha because the same texture set will not always be on top and the distribution is much more controllable, but it comes at the cost of shader compilation time since each image setup is duplicated eight times in order for each surrounding cell to be checked. This method works best when leaving the Random Cell Shape at 0 and increasing the Random Location instead. Also, Cycles has a hard texture limit, so it is not recommended to use this option with more than four images. If you can, try using the Stacked option instead.
+**Overlapping Alpha** enables textures to actually overlap their immediate neighbors. This allows for great looking results and appears much more randomized than Layered Alpha because the same texture set will not always be on top and the distribution is much more controllable, but it comes at the cost of shader compilation time since each image setup is duplicated eight times in order for each surrounding cell to be checked. This method works best when leaving the Random Cell Shape at 0 and increasing the Random Location instead. Also, Cycles has a hard texture limit, so it is not recommended to use this option with more than four images. If you can, try using the Layered Alpha option instead.
 
 ## Pixel Interpolation
 
