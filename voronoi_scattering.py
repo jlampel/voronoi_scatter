@@ -100,9 +100,12 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
             else:
                 image_node.extension = 'REPEAT'
 
-            uses_default_colorspace = image_nodes[image_node_idx].image.colorspace_settings.name in defaults.color_spaces
-            if self.use_pbr and channel in defaults.data_channels and uses_default_colorspace:
-                    image_node.image.colorspace_settings.name = 'Non-Color'
+            color_spaces = [x.name for x in bpy.types.ColorManagedInputColorspaceSettings.bl_rna.properties['name'].enum_items]
+            if self.use_pbr and self.use_manage_col and channel in defaults.data_channels:
+                for space in defaults.data_color_spaces:
+                    if space in color_spaces:
+                      image_node.image.colorspace_settings.name = space
+                      break
             else:
                 image_node.image.colorspace_settings.name = image_nodes[image_node_idx].image.colorspace_settings.name
 
@@ -873,7 +876,7 @@ def voronoi_scatter(self, context, prev_scatter_sources):
         nodes.remove(prev_scatter_node)
 
 class NODE_OT_scatter(Operator):
-    bl_label = "Voronoi Scatter"
+    bl_label = "Scatter Images"
     bl_idname = "node.scatter"
     bl_description = "Scatters all selected image textures"
     bl_space_type = "NODE_EDITOR"
@@ -941,6 +944,11 @@ class NODE_OT_scatter(Operator):
         description = "Automatically detects PBR textures based on the image name and scatters each texture set accordingly",
         default = defaults.scatter['use_pbr'],
     )
+    use_manage_col: bpy.props.BoolProperty(
+        name = "Auto Manage",
+        description = "Automatically sets non-color maps to the right color space",
+        default = defaults.scatter['use_manage_col'],
+    )
     # These three properties are only for unscattering
     interpolation: bpy.props.EnumProperty(
         name = "Pixel Interpolation",
@@ -985,6 +993,9 @@ class NODE_OT_scatter(Operator):
         pbr_row = pbr.row()
         pbr_row.enabled = (self.layering != "coordinates" and self.layering != "overlapping")
         pbr_row.prop(self, "use_pbr")
+        col = layout.column(heading="Color")
+        col_row = col.row()
+        col_row.prop(self, "use_manage_col")
         options = layout.column(heading="Additional Controls")
         options.prop(self, "use_edge_blur")
         options.prop(self, "use_edge_warp")

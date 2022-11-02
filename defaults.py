@@ -1,9 +1,6 @@
 # These are the file extensions that get stripped out of the name when checking for a PBR texture
 file_types = ['PNG', 'JPG', 'EXR', 'BMP', 'TFF', 'TIF', 'TGA']
 
-# Some custom builds of blender use other color spaces
-color_spaces = ['Filmic Log', 'Non-Color', 'Raw', 'sRGB', 'XYZ', 'Linear', 'Linear ACES']
-
 section_labels = ["Transformation", "Cell Randomization", "Texture Randomization", "Transparency"]
 
 # Including any of the following words between separaters [' ', '-', '_'] will add the texture to the corresponding PBR channel
@@ -24,6 +21,9 @@ texture_names = {
 # Include any texture types that should only have their value adjusted and not their hue or saturation
 data_channels = ['AO', 'Metallic', 'Specular', 'Roughness', 'Glossiness', 'Alpha', 'Bump', 'Displacement']
 
+# Some custom builds of blender use other color spaces
+data_color_spaces = ['Non-Color', 'Linear', 'Linear BT.709', 'Generic Data', 'Data']
+
 # Defaults for the operators. Do not add or remove any of these.
 scatter = {
     'projection_method': 'uv', # uv or tri-planar
@@ -35,6 +35,7 @@ scatter = {
     'use_texture_warp': False,
     'use_random_col': True,
     'use_noise_col': False,
+    'use_manage_col': True
 }
 unscatter = {
     'interpolation': 'Linear', # Linear, Closest, Cubic, or Smart
