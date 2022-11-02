@@ -7,31 +7,30 @@ from . import defaults
 from .noise_blending import noise_blend
 from .unscatter import extract_images
 from .utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources, mode_toggle
-   
-def sort_textures(self, selected_nodes):
+
+def sort_textures(self, context, selected_nodes):
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
     sorted_textures = {
         'Image': [],
-        'Albedo': [], 
-        'AO': [], 
-        'Metallic': [], 
-        'Specular': [], 
-        'Roughness': [], 
-        'Glossiness': [], 
-        'Emission': [], 
-        'Alpha': [], 
+        'Albedo': [],
+        'AO': [],
+        'Metallic': [],
+        'Specular': [],
+        'Roughness': [],
+        'Glossiness': [],
+        'Emission': [],
+        'Alpha': [],
         'Bump': [],
         'Normal': [],
+        'Displacement': []
     }
 
     for texture in textures:
-        is_map = False
         if self.use_pbr:
-            map_type = create_friendly_name(texture.image.name)
+            map_type = create_friendly_name(context, texture.image.name)
             if map_type in sorted_textures.keys():
                 sorted_textures[map_type].append(texture)
-                is_map = True
-        if not is_map:
+        else:
             sorted_textures['Image'].append(texture)
     filtered_textures = {}
     for map_type in sorted_textures:
@@ -39,14 +38,14 @@ def sort_textures(self, selected_nodes):
             filtered_textures[map_type] = sorted_textures[map_type]
 
     if self.layering == 'overlapping' and len(selected_nodes) > 4:
-        self.report({'WARNING'}, 
+        self.report({'WARNING'},
             'Each texture must be computed 9 times for the overlapping method. Compilation may be slow. Try simple layering for faster renders'
         )
     return filtered_textures
 
 def append_scatter_node(self, context, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
-    if self.layering == 'overlapping': 
+    if self.layering == 'overlapping':
         scatter_node = append_node(self, nodes, 'SS - Scatter Overlapping')
         scatter_node.label = "Scatter Overlapping"
     else:
@@ -93,7 +92,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
             # https://developer.blender.org/T92589
             if channel == 'Normal' and self.layering != 'overlapping':
                 image_node.interpolation = 'Linear'
-            else: 
+            else:
                 image_node.interpolation = self.texture_interpolation
 
             if transparency:
@@ -101,9 +100,8 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
             else:
                 image_node.extension = 'REPEAT'
 
-            noncolor_channels = ['Normal', 'Bump']
             uses_default_colorspace = image_nodes[image_node_idx].image.colorspace_settings.name in defaults.color_spaces
-            if self.use_pbr and channel in noncolor_channels and uses_default_colorspace:
+            if self.use_pbr and channel in defaults.data_channels and uses_default_colorspace:
                     image_node.image.colorspace_settings.name = 'Non-Color'
             else:
                 image_node.image.colorspace_settings.name = image_nodes[image_node_idx].image.colorspace_settings.name
@@ -140,7 +138,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
                 if image_node_idx == 1:
                     scatter_source_links.new(new_image_nodes[image_node_idx - 1].outputs[0], col_mix_nodes[image_node_idx - 1].inputs[1])
                     scatter_source_links.new(new_image_nodes[image_node_idx - 1].outputs[1], alpha_mix_nodes[image_node_idx - 1].inputs[1])
-                else: 
+                else:
                     scatter_source_links.new(new_image_nodes[image_node_idx - 1].outputs[0], col_mix_nodes[image_node_idx - 2].inputs[2])
                     scatter_source_links.new(new_image_nodes[image_node_idx - 1].outputs[1], alpha_mix_nodes[image_node_idx - 2].inputs[2])
                     scatter_source_links.new(col_mix_nodes[image_node_idx - 2].outputs[0], col_mix_nodes[image_node_idx - 1].inputs[1])
@@ -153,7 +151,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
                 scatter_source_links.new(new_image_nodes[0].outputs[0], scatter_source_nodes["Color Result"].inputs[0])
                 scatter_source_links.new(new_image_nodes[0].outputs[1], scatter_source_nodes["Alpha Result"].inputs[0])
         return new_image_nodes
-        
+
     def copy_to_all_scatter_sources(scatter_source):
         scatter_source_groups = [x for x in nodes if x.label == "Scatter Source"]
         for x in scatter_source_groups:
@@ -167,7 +165,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         if channel not in scatter_node.node_tree.outputs:
             if channel == 'Normal':
                 scatter_node.node_tree.outputs.new("NodeSocketVector", channel)
-            elif channel in defaults.value_channels: 
+            elif channel in defaults.data_channels:
                 scatter_node.node_tree.outputs.new("NodeSocketFloat", channel)
             else:
                 scatter_node.node_tree.outputs.new("NodeSocketColor", channel)
@@ -233,7 +231,7 @@ def blend_colors(self, scatter_node, scatter_sources):
         for input_name in blending_inputs:
             links.new(nodes['Group Input'].outputs["Mix Noise " + input_name], blending_node.inputs['Noise ' + input_name])
         return blending_results
-    elif self.layering != 'overlapping': 
+    elif self.layering != 'overlapping':
         for input_name in blending_inputs:
             inputs.remove(inputs["Mix Noise " + input_name])
         return color_results
@@ -247,7 +245,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
     color_results = {}
 
     def create_randomize_node(prev_node, scatter_source, channel):
-        if channel in defaults.value_channels:
+        if channel in defaults.data_channels:
             randomize_node = append_node(self, nodes, "SS - Randomize Cell Value")
             randomize_node.location = [prev_node.location[0] + 250, prev_node.location[1]]
             links.new(prev_node.outputs[channel], randomize_node.inputs[0])
@@ -269,7 +267,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
     def remove_unused_inputs():
         if self.use_random_col:
             channels = prev_outputs.keys()
-            for value_channel in defaults.value_channels:
+            for value_channel in defaults.data_channels:
                 if value_channel not in channels:
                     inputs.remove(inputs['Random Cell '+ value_channel])
             if 'Albedo' not in channels and 'Image' not in channels and 'Emission' not in channels:
@@ -277,12 +275,12 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
                 inputs.remove(inputs['Random Cell Saturation'])
                 inputs.remove(inputs['Random Cell Value'])
         else:
-            for value_channel in defaults.value_channels:
+            for value_channel in defaults.data_channels:
                 inputs.remove(inputs['Random Cell '+ value_channel])
             inputs.remove(inputs['Random Cell Hue'])
             inputs.remove(inputs['Random Cell Saturation'])
             inputs.remove(inputs['Random Cell Value'])
-    
+
     if self.use_random_col and self.layering != 'overlapping':
         channels = [*prev_outputs]
         for channel in channels:
@@ -326,7 +324,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
     color_results = {}
 
     def create_randomize_hsv(color_output, channel):
-        if channel in defaults.value_channels:
+        if channel in defaults.data_channels:
             randomize_node = append_node(self, nodes, "SS - Noise Randomize Value")
             randomize_node.location = [color_output.node.location[0] + 250, color_output.node.location[1]]
             links.new(color_output, randomize_node.inputs[0])
@@ -353,7 +351,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
     def remove_unused_inputs():
         if self.use_noise_col and self.layering != 'overlapping':
             channels = scatter_sources.keys()
-            for value_channel in defaults.value_channels:
+            for value_channel in defaults.data_channels:
                 if value_channel not in channels:
                     inputs.remove(inputs[value_channel + " Noise"])
                     inputs.remove(inputs[value_channel + " Noise Scale"])
@@ -414,7 +412,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
         nodes.remove(nodes['Randomize Texture HSV'])
         if self.use_random_col:
             links.new(nodes['Randomize Cell HSV'].outputs[0], nodes['Color Output'].inputs[0])
-        else:    
+        else:
             links.new(nodes['Color Result'].outputs[0], nodes['Color Output'].inputs[0])
         remove_unused_inputs()
 
@@ -460,7 +458,7 @@ def correct_normals(self, context, scatter_node, prev_outputs):
                     color_results['Normal'].append(color_result)
         else:
             color_results[channel] = prev_outputs[channel]
-    
+
     return color_results
 
 def manage_alpha(self, scatter_node, scatter_sources, color_results, transparency):
@@ -520,12 +518,12 @@ def cleanup_layering(self, scatter_node, scatter_sources):
             scatter_node.node_tree.outputs.remove(scatter_node.node_tree.outputs['Image'])
             outputs = scatter_node.node_tree.outputs
             output_count = len(outputs)
-            outputs.move(0, output_count - 1) 
+            outputs.move(0, output_count - 1)
 
     if (self.layering == 'simple' or self.layering == 'simple_alpha' or self.layering == 'layered') and self.use_pbr:
         outputs = scatter_node.node_tree.outputs
         output_count = len(outputs)
-        outputs.move(1, output_count - 1) 
+        outputs.move(1, output_count - 1)
 
     if self.layering != 'layered' and self.layering != 'overlapping':
         remove_section(nodes, 'Randomize Layers')
@@ -645,7 +643,7 @@ def connect_shader(self, selected_nodes, scatter_node):
                         links.new(bump_node.outputs[0], node.inputs['Normal'])
                         if has_normal:
                             links.new(scatter_node.outputs['Normal'], bump_node.inputs['Normal'])
-            else: 
+            else:
                 links.new(scatter_node.outputs[0], node.inputs[0])
         elif node.type == 'BSDF_DIFFUSE':
             links.new(scatter_node.outputs[0], node.inputs[0])
@@ -657,7 +655,7 @@ def remove_images(selected_nodes):
 
 def setup_scatter_node(self, context, selected_nodes, should_remove_images=True):
     transparency = (self.layering == 'simple_alpha' or self.layering == 'layered' or self.layering == 'overlapping')
-    sorted_textures = sort_textures(self, selected_nodes)
+    sorted_textures = sort_textures(self, context, selected_nodes)
     scatter_node = append_scatter_node(self, context, selected_nodes)
     scatter_coordinates = create_scatter_coordinates(scatter_node)
     scatter_sources = create_scatter_sources(self, scatter_node, sorted_textures, transparency)
@@ -677,13 +675,13 @@ def create_coordinates_node(self, context, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
     links = selected_nodes[0].id_data.links
 
-    # append and attach node 
+    # append and attach node
     textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
     scatter_node = append_node(self, nodes, 'SS - Scatter Mapping')
     scatter_node.label = "Scatter Mapping"
     scatter_node.width = 250
     scatter_node.location = [
-        min([tex.location[0] for tex in textures]) - 350, 
+        min([tex.location[0] for tex in textures]) - 350,
         sum([x.location[1] for x in textures]) / len(textures) + 100
     ]
     for texture in textures:
@@ -702,7 +700,7 @@ def create_coordinates_node(self, context, selected_nodes):
         tri_planar.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 250]
         links.new(tri_planar.outputs['Vector'], scatter_node.inputs['Vector'])
 
-    # clean up options 
+    # clean up options
     scatter_node_nodes = scatter_node.node_tree.nodes
     scatter_node_links = scatter_node.node_tree.links
 
@@ -758,7 +756,7 @@ def create_layered_node(self, context, selected_nodes):
             inner_node.extension = node.extension
             inner_node.interpolation = node.interpolation
             nodes_to_scatter.append(inner_node)
-        sorted_textures = sort_textures(self, nodes_to_scatter)
+        sorted_textures = sort_textures(self, context, nodes_to_scatter)
         max_nodes = max([ len(sorted_textures[x]) for x in sorted_textures ])
         tex_sets = []
         for idx in range(max_nodes):
@@ -802,7 +800,7 @@ def create_layered_node(self, context, selected_nodes):
                             links.new(output, scatter_nodes[node_idx + 1].inputs['Background'])
                         else:
                             self.report(
-                                {'ERROR'}, 
+                                {'ERROR'},
                                 'Please make sure each texture set has the same types of textures.' +
                                 'One set does not have an Image channel. Inner nodes have not be set correctly'
                             )
@@ -811,9 +809,9 @@ def create_layered_node(self, context, selected_nodes):
                             links.new(output, scatter_nodes[node_idx + 1].inputs[output.name])
                         else:
                             self.report(
-                                {'ERROR'}, 
+                                {'ERROR'},
                                 'Please make sure each texture set has the same types of textures.' +
-                                'One set does not have a %s channel. Inner nodes have not be set correctly' 
+                                'One set does not have a %s channel. Inner nodes have not be set correctly'
                                 %(output.name)
                             )
             elif node_idx == last_idx:
@@ -826,7 +824,7 @@ def create_layered_node(self, context, selected_nodes):
     connect_shader(self, selected_nodes, master_node)
     remove_images(selected_nodes)
     return master_node
-    
+
 def setup_defaults(self, scatter_node):
     if defaults.layering.get('common'):
         for default in defaults.layering['common'].keys():
@@ -846,7 +844,7 @@ def voronoi_scatter(self, context, prev_scatter_sources):
     prev_scatter_node = None
     prev_values = {}
     if prev_scatter_sources:
-        # This only supports re-scattering one node at a time 
+        # This only supports re-scattering one node at a time
         prev_scatter_node = context.selected_nodes[0]
         for input in prev_scatter_node.inputs:
             if input.name not in defaults.section_labels:
@@ -871,7 +869,7 @@ def voronoi_scatter(self, context, prev_scatter_sources):
             if output.name in [x.name for x in prev_scatter_node.outputs]:
                 for link in prev_scatter_node.outputs[output.name].links:
                     links.new(output, prev_scatter_node.outputs[output.name].links[0].to_socket)
-        scatter_node.location = prev_scatter_node.location 
+        scatter_node.location = prev_scatter_node.location
         nodes.remove(prev_scatter_node)
 
 class NODE_OT_scatter(Operator):
@@ -898,7 +896,7 @@ class NODE_OT_scatter(Operator):
             ("Closest", "Closest", "Pixels are not interpolated, like in pixel art. This fixes artifacts between voronoi cell edges in Eevee"),
             ("Cubic", "Cubic", "Pixels are smoothed but may cause artifacts between voronoi cells in Eevee. Only recommended for Cycles")
         ],
-        default = defaults.scatter['texture_interpolation'], 
+        default = defaults.scatter['texture_interpolation'],
     )
     layering: bpy.props.EnumProperty(
         name = "Scatter Method",
@@ -943,7 +941,7 @@ class NODE_OT_scatter(Operator):
         description = "Automatically detects PBR textures based on the image name and scatters each texture set accordingly",
         default = defaults.scatter['use_pbr'],
     )
-    # These three properties are only for unscattering 
+    # These three properties are only for unscattering
     interpolation: bpy.props.EnumProperty(
         name = "Pixel Interpolation",
         description ="The pixel interpolation for each image",
@@ -1003,23 +1001,23 @@ class NODE_OT_scatter(Operator):
         if context.selected_nodes:
             nodes = context.selected_nodes[0].id_data.nodes
             return(
-                [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)] 
+                [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)]
                 or (get_scatter_sources(context.selected_nodes) and len(context.selected_nodes) == 1)
             )
         else:
             return False
-            
+
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        # switching modes prevents context errors 
+        # switching modes prevents context errors
         prev_mode = mode_toggle(context, 'OBJECT')
         voronoi_scatter(self, context, get_scatter_sources(context.selected_nodes))
         mode_toggle(context, prev_mode)
         return {'FINISHED'}
- 
-def register(): 
+
+def register():
     bpy.utils.register_class(NODE_OT_scatter)
 
 def unregister():

@@ -1,7 +1,7 @@
 import os
-import re 
-import bpy 
-from .defaults import file_types, texture_names
+import re
+import bpy
+from .defaults import texture_names
 
 def append_node(self, nodes, node_tree_name):
     path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
@@ -21,65 +21,73 @@ def append_node(self, nodes, node_tree_name):
     node_group.node_tree.name = node_tree_name
     return node_group
 
+def name_array_to_string(name_array):
+    name_string = ''
+    for name in name_array:
+        name_string += name + ', '
+    return name_string[:-2]
+
+def name_string_to_array(name_string):
+    return [x for x in re.split(', ', name_string)]
+
 def average_location(selected_nodes):
     return [
         sum([x.location[0] for x in selected_nodes]) / len(selected_nodes),
         sum([x.location[1] for x in selected_nodes]) / len(selected_nodes)
     ]
 
-def create_friendly_name(x):
-    name = x
-    for t in file_types:
-        if t in name:
-            name = name.replace(t, '')
+def create_friendly_name(context, texture_name):
+    preferences = context.preferences.addons[__package__].preferences
+    name = texture_name
+    for file_type in preferences.file_types:
+        extension = '.' + file_type.lower()
+        if extension in name:
+            name = name.replace(extension, '')
+    name_array = []
+    # Preferences can only be accessed by dot notation, so iterating through each channel with bracket notation does not work
     for word in re.split('[^a-z]', name.lower()):
-        if word in texture_names['albedo']: 
-            name = 'Albedo'
-            break
-        if word in texture_names['ao']: 
-            name = 'AO'
-            break
-        elif word in texture_names['metal']: 
-            name = 'Metallic'
-            break
-        elif word in texture_names['rough']:
-            name = 'Roughness'
-            break
-        elif word in texture_names['gloss']:
-            name = 'Glossiness'
-            break
-        elif word in texture_names['spec']:
-            name = 'Specular'
-            break
-        elif word in texture_names['emit']:
-            name = 'Emission'
-            break
-        elif word in texture_names['alpha']:
-            name = 'Alpha'
-            break
-        elif word in texture_names['normal']:
-            name = 'Normal'
-            break
-        elif word in texture_names['bump']:
-            name = 'Bump'
-            break
-    return name 
+        if word in name_string_to_array(preferences.albedo_names):
+            name_array.append('Albedo')
+        elif word in name_string_to_array(preferences.ao_names):
+            name_array.append('AO')
+        elif word in name_string_to_array(preferences.metal_names):
+            name_array.append('Metallic')
+        elif word in name_string_to_array(preferences.rough_names):
+            name_array.append('Roughness')
+        elif word in name_string_to_array(preferences.gloss_names):
+            name_array.append('Glossiness')
+        elif word in name_string_to_array(preferences.spec_names):
+            name_array.append('Specular')
+        elif word in name_string_to_array(preferences.emit_names):
+            name_array.append('Emission')
+        elif word in name_string_to_array(preferences.alpha_names):
+            name_array.append('Alpha')
+        elif word in name_string_to_array(preferences.normal_names):
+            name_array.append('Normal')
+        elif word in name_string_to_array(preferences.bump_names):
+            name_array.append('Bump')
+        elif word in name_string_to_array(preferences.displacement_names):
+            name_array.append('Displacement')
+    if len(name_array):
+        return name_array[-1]
+    else:
+        return 'Image'
 
-def create_sortable_name(x):
-    name = x
-    file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
-    for t in file_types:
-        if t in name:
-            name = name.replace(t, '')
-    all_words = re.split('[^\d\w]*[\(\)\_\-\s]', name.lower())
-    without_spaces = []
-    for word in all_words:
-        if word == '':
-            pass
-        else: 
-            without_spaces.append(word)
-    name = without_spaces
-    return name
+#def create_sortable_name(x):
+#    name = x
+#    file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
+#    for t in file_types:
+#        if t in name:
+#            name = name.replace(t, '')
+#    all_words = re.split('[^\d\w]*[\(\)\_\-\s]', name.lower())
+#    without_spaces = []
+#    for word in all_words:
+#        if word == '':
+#            pass
+#        else:
+#            without_spaces.append(word)
+#    name = without_spaces
+#    return name
 
 def get_scatter_sources(selected_nodes):
     nodes = selected_nodes[0].id_data.nodes

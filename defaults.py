@@ -1,29 +1,30 @@
 # These are the file extensions that get stripped out of the name when checking for a PBR texture
-file_types = ['.png', '.jpg', '.exr', '.bmp', '.tff', '.tif', '.tga']
+file_types = ['PNG', 'JPG', 'EXR', 'BMP', 'TFF', 'TIF', 'TGA']
 
 # Some custom builds of blender use other color spaces
-color_spaces = ['Filmic Log', 'Linear', 'Linear ACES', 'Non-Color', 'Raw', 'sRGB', 'XYZ']
+color_spaces = ['Filmic Log', 'Non-Color', 'Raw', 'sRGB', 'XYZ', 'Linear', 'Linear ACES']
 
 section_labels = ["Transformation", "Cell Randomization", "Texture Randomization", "Transparency"]
 
 # Including any of the following words between separaters [' ', '-', '_'] will add the texture to the corresponding PBR channel
 texture_names = {
-    'albedo': ['albedo', 'base color', 'base_color', 'basecolor', 'base_col', 'color', 'diffuse', 'diff', 'col', 'd'],
-    'ao': ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion'],
-    'metal': ['metal', 'metallic', 'metalness', 'm', 'met', 'mt'],
-    'rough': ['roughness', 'rough', 'r', 'rgh'],
-    'gloss': ['gloss', 'glossiness', 'gls'],
-    'spec': ['spec', 'specular', 'spc', 'refl', 'reflection'],
-    'emit': ['emit', 'emission', 'emissive', 'glow', 'glw', 'e'],
-    'alpha': ['alpha', 'transparent', 'transparency', 'opacity'],
-    'bump': ['bmp', 'bump', 'height', 'h', 'dp', 'disp', 'displacement'],
-    'normal': ['normal', 'nrm', 'n', 'nrlm', 'nor']
+    'Albedo': ['albedo', 'base_color', 'basecolor', 'base_col', 'base', 'color', 'diffuse', 'diff', 'col', 'c', 'd'],
+    'AO': ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion', 'occ'],
+    'Metalness': ['metal', 'metallic', 'metalness', 'm', 'met', 'mt', 'ml'],
+    'Roughness': ['roughness', 'rough', 'r', 'rgh', 'rh'],
+    'Glossiness': ['gloss', 'glossiness', 'gl', 'gls', 'g'],
+    'Specular': ['spec', 'specular', 'sp', 'spc', 'refl', 'reflection', 'r', 's'],
+    'Emission': ['emit', 'emission', 'emissive', 'glow', 'glw', 'em', 'e'],
+    'Alpha': ['alpha', 'transparent', 'transparency', 'opacity', 'a'],
+    'Bump': ['bmp', 'bump', 'b'],
+    'Normal': ['normal', 'nrm', 'n', 'nrlm', 'nor'],
+    'Displacement': ['d', 'dp', 'disp', 'displacement', 'height', 'h']
 }
 
 # Include any texture types that should only have their value adjusted and not their hue or saturation
-value_channels = ['AO', 'Metallic', 'Specular', 'Roughness', 'Glossiness', 'Alpha', 'Bump']
+data_channels = ['AO', 'Metallic', 'Specular', 'Roughness', 'Glossiness', 'Alpha', 'Bump', 'Displacement']
 
-# Defaults for the operators. Do not add or remove any of these. 
+# Defaults for the operators. Do not add or remove any of these.
 scatter = {
     'projection_method': 'uv', # uv or tri-planar
     'texture_interpolation': 'Closest', # Closest or Cubic
@@ -44,7 +45,7 @@ noise_blend = {
     'mix_by': 'common_name', # order, name, common_name, or first
 }
 
-# Default values for the scatter node inputs on creation. 
+# Default values for the scatter node inputs on creation.
 # You can add or remove any settings that you find on a scatter node
 layering = {
     'common': {
