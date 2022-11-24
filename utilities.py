@@ -1,7 +1,8 @@
 import os
 import re
 import bpy
-from .defaults import texture_names
+from copy import copy
+from .defaults import texture_names, default_view_transforms, node_names
 
 def append_node(self, nodes, node_tree_name):
   path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
@@ -26,6 +27,7 @@ def average_location(selected_nodes):
     sum([x.location[0] for x in selected_nodes]) / len(selected_nodes),
     sum([x.location[1] for x in selected_nodes]) / len(selected_nodes)
   ]
+
 
 def create_friendly_name(context, texture_name):
   preferences = context.preferences.addons[__package__].preferences
@@ -64,23 +66,32 @@ def create_friendly_name(context, texture_name):
   else:
     return 'Image'
 
+
 def get_scatter_sources(selected_nodes):
-  nodes = selected_nodes[0].id_data.nodes
+  scatter_sources = []
   if selected_nodes:
+    nodes = selected_nodes[0].id_data.nodes
     selected_group_nodes = [x for x in nodes if x.select and x.type == 'GROUP']
-    scatter_sources = []
     for group_node in selected_group_nodes:
       for node in group_node.node_tree.nodes:
         if node.type == 'GROUP':
-          if 'SS - Scatter Source' in node.node_tree.name:
+          if node_names['scatter_source'] in node.node_tree.name:
             scatter_sources.append(node)
-          elif 'SS - Scatter Fast' in node.node_tree.name:
+          elif node_names['scatter'] in node.node_tree.name:
             for inner_node in node.node_tree.nodes:
-              if inner_node.type == 'GROUP' and 'SS - Scatter Source' in inner_node.node_tree.name:
+              if inner_node.type == 'GROUP' and node_names['scatter_source'] in inner_node.node_tree.name:
                 scatter_sources.append(inner_node)
-    return scatter_sources
-  else:
-    return []
+  return scatter_sources
+
+
+def get_baked_sources(selected_nodes):
+  baked_nodes = []
+  if selected_nodes:
+    for node in selected_nodes:
+      if get_scatter_sources([node]) and 'TEX_IMAGE' in [x.type for x in node.node_tree.nodes]:
+        baked_nodes.append(node)
+  return baked_nodes
+
 
 def has_scatter_uvs(selected_nodes):
   nodes = selected_nodes[0].id_data.nodes
@@ -94,14 +105,17 @@ def has_scatter_uvs(selected_nodes):
           break
   return has_uvs
 
+
 def name_array_to_string(name_array):
   name_string = ''
   for name in name_array:
     name_string += name + ', '
   return name_string[:-2]
 
+
 def name_string_to_array(name_string):
   return [x for x in re.split(', ', name_string)]
+
 
 def mode_toggle(context, switch_to):
   prev_mode = context.mode
@@ -118,8 +132,70 @@ def mode_toggle(context, switch_to):
     switch[switch_to]()
   return prev_mode
 
+
 def remove_section(nodes, title):
   for node in nodes:
     if node.parent and node.parent.name == title:
       nodes.remove(node)
   nodes.remove(nodes[title])
+
+def get_default_color_transform(user_transform):
+  test_transform = 'not_a_real_transform'
+  try:
+      bpy.context.scene.view_settings.view_transform = test_transform
+  except Exception as error_message:
+      transform_list = str(error_message).replace(
+          f'bpy_struct: item.attr = val: enum "{test_transform}" not found in (', '').replace("'", '')[:-1].split(',')
+      for t in default_view_transforms:
+        if t in transform_list:
+          return t
+      return user_transform
+
+
+def save_image(context, image, format_properties):
+  image_settings = context.scene.render.image_settings
+  color_settings = context.scene.view_settings
+
+  def get_format_properties():
+    return {
+      'format': image_settings.file_format,
+      'color_depth': image_settings.color_depth,
+      'color_mode': image_settings.color_mode,
+      'quality': image_settings.quality,
+      'tiff_codec': image_settings.tiff_codec,
+      'transform':  color_settings.view_transform,
+      'look': color_settings.look,
+      'exposure': color_settings.exposure,
+      'gamma': color_settings.gamma,
+      'use_curve_mapping': color_settings.use_curve_mapping,
+    }
+  def set_format_properties(properties):
+    image_settings.file_format = properties['format']
+    image_settings.color_depth = properties['color_depth']
+    image_settings.color_mode = properties['color_mode']
+    image_settings.quality = properties['quality']
+    image_settings.tiff_codec = properties['tiff_codec']
+    color_settings.view_transform = properties['transform']
+    color_settings.look = properties['look']
+    color_settings.exposure = properties['exposure']
+    color_settings.gamma = properties['gamma']
+    color_settings.use_curve_mapping = properties['use_curve_mapping']
+
+  user_format_properties = get_format_properties()
+  default_properties = {
+    'format': 'PNG',
+    'color_depth': '16',
+    'color_mode': 'RGB',
+    'quality': 100,
+    'tiff_codec': 'NONE',
+    'transform': get_default_color_transform(user_format_properties['transform']),
+    'look': 'None',
+    'exposure': 0,
+    'gamma': 1,
+    'use_curve_mapping': False
+  }
+  settings = {**default_properties, **format_properties}
+  print(f'Saving Texture: {image.name} - {settings}')
+  set_format_properties(settings)
+  image.save_render(filepath=bpy.path.abspath(image.filepath))
+  set_format_properties(user_format_properties)

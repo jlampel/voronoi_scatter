@@ -1,5 +1,11 @@
-# These are the file extensions that get stripped out of the name when checking for a PBR texture
-file_types = ['PNG', 'JPG', 'EXR', 'BMP', 'TFF', 'TIF', 'TGA']
+file_types = {
+  'PNG': 'png',
+  'JPEG': 'jpg',
+  'OPEN_EXR': 'exr',
+  'BMP': 'bmp',
+  'TIFF': 'tif',
+  'TARGA': 'tga'
+}
 
 section_labels = ["Transformation", "Cell Randomization", "Texture Randomization", "Transparency"]
 
@@ -18,11 +24,14 @@ texture_names = {
     'Displacement': ['d', 'dp', 'disp', 'displacement', 'height', 'h']
 }
 
-# Include any texture types that should only have their value adjusted and not their hue or saturation
+# Texture types that should only have their value adjusted and not their hue or saturation
 data_channels = ['AO', 'Metallic', 'Specular', 'Roughness', 'Glossiness', 'Alpha', 'Bump', 'Displacement']
+# Texture types that should be output at a higher bit depth
+detail_channels = ['Bump', 'Displacement', 'Normal']
 
 # Some custom builds of blender use other color spaces
 data_color_spaces = ['Non-Color', 'Linear', 'Linear BT.709', 'Generic Data', 'Data']
+default_view_transforms = ['Standard', 'Display Native']
 
 # Defaults for the operators. Do not add or remove any of these.
 scatter = {
@@ -97,4 +106,23 @@ layering = {
         'Texture Scale': 2,
         'Random Texture Location': 0.5
     },
+}
+
+# Node names
+node_names = {
+  "tri-planar": "Tri-Planar Mapping",
+  "uv_normal_map": "UV Normal Map",
+  "tri-planar_normal_map": "Tri-Planar Normal Map",
+  "scatter_vectors": "Scatter Vectors",
+  "vector_default": "Vector Default",
+  "scatter": "Scattershot",
+  "scatter_overlapping": "Scatter Overlapping",
+  "randomize_cell_hsv": "Randomize Cell HSV",
+  "randomize_noise_hsv": "Noise Randomize HSV",
+  "randomize_cell_value": "Randomize Cell Value",
+  "randomize_noise_value": "Noise Randomize Value",
+  "scatter_coordinates": "Scatter Voronoi Coordinates",
+  "scatter_source": "Scatter Source",
+  "scatter_source_empty": "Scatter Source Empty",
+  "scatter_layered": "Scatter Layered"
 }

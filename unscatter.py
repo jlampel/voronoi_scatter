@@ -21,7 +21,7 @@ def extract_images(self, selected_nodes):
             new_textures.append(new_image)
             new_image.image = image.image
             new_image.image.colorspace_settings.name = image.image.colorspace_settings.name
-            new_image.location = [scatter_node.location[0] + (250 * columns), scatter_node.location[1] - (255 * (image_idx % 4))] 
+            new_image.location = [scatter_node.location[0] + (250 * columns), scatter_node.location[1] - (285 * (image_idx % 4))]
             new_image.projection = self.projection
             new_image.interpolation = self.interpolation
             new_image.extension = self.extension
@@ -90,9 +90,9 @@ class NODE_OT_unscatter(Operator):
         extract_images(self, selected_nodes)
         remove_scatter_nodes(selected_nodes)
         return {'FINISHED'}
-    
+
 def register():
     bpy.utils.register_class(NODE_OT_unscatter)
-    
+
 def unregister():
     bpy.utils.unregister_class(NODE_OT_unscatter)

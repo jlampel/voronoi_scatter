@@ -1,6 +1,6 @@
 import bpy
 
-from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket, baking
+from . import voronoi_scattering, unscatter, noise_blending, randomize_color, triplanar_mapping, label_socket, bake, clear_bake, denoise_image
 
 class NODE_MT_scattershot(bpy.types.Menu):
     bl_label = 'Scattershot'
@@ -8,7 +8,8 @@ class NODE_MT_scattershot(bpy.types.Menu):
 
     def draw(self, context):
         self.layout.operator(voronoi_scattering.NODE_OT_scatter.bl_idname)
-        self.layout.operator(baking.NODE_OT_bake_scatter.bl_idname)
+        self.layout.operator(bake.NODE_OT_bake_scatter.bl_idname)
+        self.layout.operator(clear_bake.NODE_OT_clear_baked_scatter.bl_idname)
         self.layout.operator(unscatter.NODE_OT_unscatter.bl_idname)
         self.layout.operator(noise_blending.NODE_OT_noise_blend.bl_idname)
         self.layout.operator(randomize_color.NODE_OT_randomize_col.bl_idname)
@@ -31,7 +32,9 @@ def register():
     noise_blending.register()
     randomize_color.register()
     triplanar_mapping.register()
-    baking.register()
+    bake.register()
+    clear_bake.register()
+    denoise_image.register()
     bpy.utils.register_class(NODE_MT_scattershot)
     bpy.types.NODE_MT_context_menu.append(draw_context_menu)
     bpy.types.NODE_MT_node.prepend(draw_node_menu)
@@ -43,7 +46,9 @@ def unregister():
     noise_blending.unregister()
     randomize_color.unregister()
     triplanar_mapping.unregister()
-    baking.unregister()
+    bake.unregister()
+    clear_bake.unregister()
+    denoise_image.unregister()
     bpy.utils.unregister_class(NODE_MT_scattershot)
     bpy.types.NODE_MT_context_menu.remove(draw_context_menu)
     bpy.types.NODE_MT_node.remove(draw_node_menu)
