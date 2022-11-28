@@ -48,6 +48,11 @@ def bake_scatter(self, context, objects):
   nodes = selected_nodes[0].id_data.nodes
   links = selected_nodes[0].id_data.links
 
+  only_displacement = self.Displacement and all(x == False for x in [
+    self.Albedo, self.AO, self.Metalness, self.Roughness, self.Glossiness,
+    self.Specular, self.Emission, self.Alpha, self.Bump, self.Normal
+  ])
+
   scatter_nodes = [x for x in selected_nodes if get_scatter_sources([x])]
   for scatter_node in scatter_nodes:
     channel_outputs = scatter_node.outputs
@@ -55,11 +60,10 @@ def bake_scatter(self, context, objects):
     new_textures = []
     bake_outputs = [x for x in channel_outputs if x.name in texture_names.keys()]
 
-    if self.only_disp:
-      clear_bake(context)
+    clear_bake(context)
 
     for output_idx, output in enumerate(bake_outputs):
-      if (self.only_disp and output.name == 'Displacement') or (not self.only_disp):
+      if getattr(self, output.name):
         texture_node_name = f"Baked {output.name}"
 
         texture_file_name = preferences.name.replace(
@@ -99,6 +103,9 @@ def bake_scatter(self, context, objects):
           current_output_socket = material_output.inputs[0].links[0].from_socket
         else:
           current_output_socket = ''
+        if output.name == 'Normal':
+          # TODO: Properly output tangent space normals
+          pass
         links.new(output, material_output.inputs[0])
 
         # Bakes the texture
@@ -154,6 +161,7 @@ def bake_scatter(self, context, objects):
         to_sockets = [x.to_socket for x in output.links]
         for socket in to_sockets:
           links.new(scatter_node.outputs[texture_node_name], socket)
+        # TODO: Move sockets to right below the origional
 
     # Moves Displacement to the bottom
     output_count = len(scatter_node.outputs)
@@ -164,6 +172,7 @@ def bake_scatter(self, context, objects):
 
     # Sets up nodes for UVs
     # TODO: Make sure the right UVs are always used
+    # TODO: Make sure object has UVs!
     if 'UV Map' not in [x.name for x in scatter_node.inputs]:
       uv_input = scatter_node.node_tree.inputs.new('NodeSocketVector', 'UV Map')
       uv_input.hide_value = True
@@ -176,7 +185,7 @@ def bake_scatter(self, context, objects):
       group_nodes['UV Map'].uv_map = "ScattershotUVs"
 
     # Hides unused sockets
-    if not self.only_disp:
+    if not only_displacement:
       for output in scatter_node.outputs:
         if output.name in texture_names.keys() or output.name == 'Random Color':
           output.hide = True
@@ -193,9 +202,60 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
   bl_region_type = "UI"
   bl_options = {'REGISTER', 'UNDO'}
 
-  only_disp: bpy.props.BoolProperty(
-    name="Displacement Only",
-    description="Bake just the displacement result or bake all channels",
+
+  Albedo: bpy.props.BoolProperty(
+    name="Albedo",
+    description="Bake the albedo channel",
+    default = False
+  )
+  AO: bpy.props.BoolProperty(
+    name="AO",
+    description="Bake the ambient occlusion channel",
+    default = False
+  )
+  Metalness: bpy.props.BoolProperty(
+    name="Metalness",
+    description="Bake the metalness channel",
+    default = False
+  )
+  Roughness: bpy.props.BoolProperty(
+    name="Roughness",
+    description="Bake the roughness channel",
+    default = False
+  )
+  Glossiness: bpy.props.BoolProperty(
+    name="Glossiness",
+    description="Bake the glossiness channel",
+    default = False
+  )
+  Specular: bpy.props.BoolProperty(
+    name="Specular",
+    description="Bake the specular channel",
+    default = False
+  )
+  Emission: bpy.props.BoolProperty(
+    name="Emission",
+    description="Bake the emission channel",
+    default = False
+  )
+  Alpha: bpy.props.BoolProperty(
+    name="Alpha",
+    description="Bake the alpha channel",
+    default = False
+  )
+  Bump: bpy.props.BoolProperty(
+    name="Bump",
+    description="Bake the bump channel",
+    default = False
+  )
+  Normal: bpy.props.BoolProperty(
+    name="Normal",
+    description="Bake the normal channel. Not yet supported by Scattershot.",
+    default = False
+  )
+  Displacement: bpy.props.BoolProperty(
+    name="Displacement",
+    description="Bake the displacement channel",
     default = True
   )
   width: bpy.props.IntProperty(
@@ -266,14 +326,43 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
   )
 
   def draw(self, context):
+    scatter_nodes = [x for x in context.selected_nodes if get_scatter_sources([x])]
+    channels = []
+    for scatter_node in scatter_nodes:
+      for output in scatter_node.outputs:
+        channels.append(output.name)
+
     layout = self.layout
     layout.use_property_split = True
     layout.prop(self, "objects")
 
     layout.separator()
 
-    channels_row = layout.row(heading = 'Channels')
-    channels_row.prop(self, "only_disp")
+    channels_column = layout.column(heading = 'Channels')
+    if 'Albedo' in channels:
+      channels_column.prop(self, "Albedo")
+    if 'AO' in channels:
+      channels_column.prop(self, "AO")
+    if 'Metalness' in channels:
+      channels_column.prop(self, "Metalness")
+    if 'Roughness' in channels:
+      channels_column.prop(self, "Roughness")
+    if 'Glossiness' in channels:
+      channels_column.prop(self, "Glossiness")
+    if 'Specular' in channels:
+      channels_column.prop(self, "Specular")
+    if 'Emission' in channels:
+      channels_column.prop(self, "Emission")
+    if 'Alpha' in channels:
+      channels_column.prop(self, "Alpha")
+    if 'Bump' in channels:
+      channels_column.prop(self, "Bump")
+    if 'Normal' in channels:
+      normal_row = channels_column.row()
+      normal_row.enabled = False
+      normal_row.prop(self, "Normal")
+    if 'Displacement' in channels:
+      channels_column.prop(self, "Displacement")
 
     layout.separator()
 

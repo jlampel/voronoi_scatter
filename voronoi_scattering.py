@@ -4,7 +4,7 @@ from pprint import pprint
 from bpy.types import (Object, Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 from . import defaults
-from .defaults import data_channels, data_color_spaces, section_labels, node_names
+from .defaults import data_channels, detail_channels, data_color_spaces, section_labels, node_names
 from .noise_blending import noise_blend
 from .unscatter import extract_images
 from .utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources, mode_toggle
@@ -55,9 +55,7 @@ def append_scatter_node(self, context, selected_nodes):
   return scatter_node
 
 def create_scatter_coordinates(scatter_node):
-  print(scatter_node.name)
   scatter_coordinates_groups = [x for x in scatter_node.node_tree.nodes if x.label == 'Scatter Coordinates']
-  print([x.name for x in scatter_coordinates_groups])
   new_scatter_coordinates = scatter_coordinates_groups[0].node_tree.copy()
   for x in scatter_coordinates_groups:
     x.node_tree = new_scatter_coordinates
@@ -102,7 +100,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         image_node.extension = 'REPEAT'
 
       color_spaces = [x.name for x in bpy.types.ColorManagedInputColorspaceSettings.bl_rna.properties['name'].enum_items]
-      if self.use_pbr and self.use_manage_col and channel in data_channels:
+      if self.use_pbr and self.use_manage_col and (channel in data_channels or channel in detail_channels):
         for space in data_color_spaces:
           if space in color_spaces:
             image_node.image.colorspace_settings.name = space
@@ -290,7 +288,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
     for channel in channels:
       color_results[channel] = []
       for output_idx, output in enumerate(prev_outputs[channel]):
-        if channel != 'Normal':
+        if channel != 'Normal' and channel != 'Displacement':
           scatter_source = scatter_sources[channel][output_idx]
           randomize_node = create_randomize_node(output.node, scatter_source, channel)
           color_results[channel].append(randomize_node.outputs[0])
@@ -389,7 +387,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
     for channel in channels:
       color_results[channel] = []
       for color_output in prev_outputs[channel]:
-        if channel != 'Normal':
+        if channel != 'Normal' and channel != 'Displacement':
           randomize_node = create_randomize_hsv(color_output, channel)
           color_results[channel].append(randomize_node.outputs[0])
         else:

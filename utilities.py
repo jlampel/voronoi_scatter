@@ -32,7 +32,7 @@ def average_location(selected_nodes):
 def create_friendly_name(context, texture_name):
   preferences = context.preferences.addons[__package__].preferences
   name = texture_name
-  for file_type in preferences.file_types:
+  for file_type in name_string_to_array(preferences.file_types):
     extension = '.' + file_type.lower()
     if extension in name:
       name = name.replace(extension, '')
