@@ -55,7 +55,9 @@ def unwrap(self, context, objects):
       else:
         context.area.spaces[0].region_3d.view_rotation = top_view
       context.area.spaces[0].region_3d.update()
-      with context.temp_override(region = context.area.regions[5]):
+
+      # This operator needs to run in the 'WINDOW' region, wich is usually regions[5] but not always. No idea why.
+      with context.temp_override(region = context.area.regions[len(context.area.regions) - 1]):
         bpy.ops.uv.project_from_view(orthographic=True)
 
       obj.rotation_euler = initial_euler
