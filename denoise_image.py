@@ -1,9 +1,10 @@
 import bpy
+from copy import copy
 from .utilities import save_image
 
 def denoise_image(context, image, format_settings):
   # Get current state
-  prev_scene_name = context.window.scene.name
+  prev_scene_name = copy(context.window.scene.name)
   prev_editor = {'area_type': context.area.type, 'ui_type': context.area.ui_type}
 
   # Create a new scene for compositing
@@ -32,11 +33,14 @@ def denoise_image(context, image, format_settings):
   render = bpy.data.images['Render Result']
   render.filepath_raw = image.filepath_raw
   save_image(context, render, format_settings)
+  image.source = 'FILE'
+  image.reload()
 
   # Revert to previous state
   bpy.data.objects.remove(camera)
   bpy.data.cameras.remove(camera_data)
   bpy.data.scenes.remove(comp_scene)
+  context.window.scene = bpy.data.scenes[prev_scene_name]
   context.area.type = prev_editor['area_type']
   context.area.ui_type = prev_editor['ui_type']
 
