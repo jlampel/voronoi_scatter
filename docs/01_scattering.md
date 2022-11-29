@@ -5,23 +5,27 @@ nav_exclude: false
 search_exclude: false
 ---
 
-# Voronoi Scatter
+# Scatter Images
 
-Once you install the Scattershot addon, you'll find a new operator called Voronoi Scatter in the Node menu of the Shader Editor. To access it more quickly, right quick and add it to your quick favorites (Q) menu or use the right click context menu.
+Once you install the Scattershot addon, you'll find a new operator called Scatter Images in the Node menu of the Shader Editor. To access it more quickly, right quick and add it to your quick favorites (Q) menu or use the right click context menu.
 
-You must have one or more image textures selected in order to use the Voronoi Scatter command. The tooltips for the settings are pretty descriptive, so hover your mouse over each button if you forget what it does. Click 'OK' and your textures will be converted into a scatter node.
-
-If you would like to change your scatter node's settings after the fact, such as to switch from UV to tri-planar mapping, select just the scatter node and run the Voronoi Scatter operator again.
-
-To reverse the process, you can always select the scatter node and use the Un-Scatter command that is in the Node menu or in the right click context menu.
+You must have one or more image textures selected in order to use the Scatter Images command. The tooltips for the settings are pretty descriptive, so hover your mouse over each button if you forget what it does. Click 'OK' and your textures will be converted into a scatter node.
 
 You can include a Principled BSDF in your selection while scattering if you would like the resulting scatter node to be automatically hooked up.
 
+## Re-scatter
+
+If you would like to change your scatter node's settings after the fact, such as to switch from UV to tri-planar mapping, select just the scatter node and run the Scatter Images operator again.
+
+## Un-scatter
+
+To reverse the process, you can always select the scatter node and use the Un-Scatter command that is in the Node menu or in the right click context menu.
+
 ## Mapping
 
-The scattering can be done according to your object's UVs or it can be projected from all sides with tri-planar mapping. Tri-planar projection is the same thing as box mapping, but Scattershot uses a custom implementation instead of Blender's box mapping because it allows for important options like random rotation (you can't rotate a box mapped texture) and correcting the aspect ratio of non-square textures. 
+The scattering can be done according to your object's UVs or it can be projected from all sides with tri-planar mapping. Tri-planar projection is the same thing as box mapping, but Scattershot uses a custom implementation instead of Blender's box mapping because it allows for important options like random rotation (you can't rotate a box mapped texture) and correcting the aspect ratio of non-square textures.
 
-The impact on performance between the UV and Tri-Planar options is negligible since the image is not duplicated to achieve the effect. The Tri-Planar's Blending control uses a white noise texture under the hood, so you may need to increase your sample count in order to get a smooth result. Unfortunately, that means it can't play nice with displacement and you may see jagged edges around the blended area. 
+The impact on performance between the UV and Tri-Planar options is negligible since the image is not duplicated to achieve the effect. The Tri-Planar's Blending control uses a white noise texture under the hood, so you may need to increase your sample count in order to get a smooth result. Unfortunately, that means it can't play nice with displacement and you may see jagged edges around the blended area.
 
 ## Scatter Methods
 
@@ -60,7 +64,7 @@ The full list of accepted terms can be found (and changed!) in the file defaults
 
 ## Cell Blending
 
-This option enables an option that mixes in white noise to the voronoi coordinates so that the boundaries between cells appears to blur without blurring the texture. This is incredibly helpful for hiding seams. The quality of this blending depends on the number of samples in both Eevee and Cycles. Because it uses white noise, it will cause displacement textures to appear jagged. The solution, if you need to use both edge blur and displacement textures, is to bake the displacement map before your final render, which will smooth everything out. 
+This option enables an option that mixes in white noise to the voronoi coordinates so that the boundaries between cells appears to blur without blurring the texture. This is incredibly helpful for hiding seams. The quality of this blending depends on the number of samples in both Eevee and Cycles. Because it uses white noise, it will cause displacement textures to appear jagged. The solution, if you need to use both edge blur and displacement textures, is to bake the displacement map before your final render, which will smooth everything out.
 
 ## Cell Warping
 

@@ -1,11 +1,18 @@
 ---
-excerpt: The changes made to Scattershot over time. 
-nav_order: 5
+excerpt: The changes made to Scattershot over time.
+nav_order: 6
 nav_exclude: false
 search_exclude: false
 ---
 
 # Changelog
+
+## v1.7
+- Improved PBR keyword detection
+- Made the PBR keywords editable via the add-on's preferences
+- Added operator for baking displacement maps
+- Added operator to clear baked results
+- Added support for AgX color management
 
 ## v1.6
 - Updated documentation and switched to using GitHub Pages
@@ -17,9 +24,9 @@ search_exclude: false
 ## v1.5
 - Fixed compatibility issue with ACES color management
 
-## v1.4 
+## v1.4
 - Fixed normal map rotation limitations
 - Added re-scattering of existing scatter nodes
-- Introduced Noise HSV 
+- Introduced Noise HSV
 - Grouped scatter node controls
 - Fixed error when not in Object Mode
