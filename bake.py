@@ -63,7 +63,7 @@ def bake_scatter(self, context, objects):
     clear_bake(context)
 
     for output_idx, output in enumerate(bake_outputs):
-      if getattr(self, output.name):
+      if getattr(self, output.name) or output.name == 'Image':
         texture_node_name = f"Baked {output.name}"
 
         texture_file_name = preferences.name.replace(
@@ -176,13 +176,13 @@ def bake_scatter(self, context, objects):
     if 'UV Map' not in [x.name for x in scatter_node.inputs]:
       uv_input = scatter_node.node_tree.inputs.new('NodeSocketVector', 'UV Map')
       uv_input.hide_value = True
-    group_input = group_nodes['Group Input']
-    mixed_uvs = group_nodes['UVs']
-    group_links.new(group_input.outputs['UV Map'], group_nodes['User UVs'].inputs[0])
+    group_input = scatter_node.node_tree.nodes['Group Input']
+    mixed_uvs = scatter_node.node_tree.nodes['UVs']
+    scatter_node.node_tree.links.new(group_input.outputs['UV Map'], scatter_node.node_tree.nodes['User UVs'].inputs[0])
     for texture in new_textures:
-      group_links.new(mixed_uvs.outputs[0], texture.inputs[0])
+      scatter_node.node_tree.links.new(mixed_uvs.outputs[0], texture.inputs[0])
     if not self.unwrap_method == 'existing':
-      group_nodes['UV Map'].uv_map = "ScattershotUVs"
+      scatter_node.node_tree.nodes['UV Map'].uv_map = "ScattershotUVs"
 
     # Hides unused sockets
     if not only_displacement:

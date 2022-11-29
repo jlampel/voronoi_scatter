@@ -354,7 +354,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
     if self.use_noise_col and self.layering != 'overlapping':
       channels = scatter_sources.keys()
       for value_channel in data_channels:
-        if value_channel not in channels:
+        if value_channel not in channels and value_channel != 'Displacement':
           inputs.remove(inputs[value_channel + " Noise"])
           inputs.remove(inputs[value_channel + " Noise Scale"])
           inputs.remove(inputs[value_channel + " Noise Detail"])
@@ -366,7 +366,6 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
         inputs.remove(inputs['Color Noise Scale'])
         inputs.remove(inputs['Color Noise Detail'])
         inputs.remove(inputs['Color Noise Warp'])
-
     else:
       if self.layering != 'overlapping':
         channels = ['Alpha', 'AO', 'Bump', 'Glossiness', 'Metallic', 'Roughness', 'Specular']
@@ -393,11 +392,9 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
         else:
           color_results[channel].append(color_output)
     remove_unused_inputs()
-
   elif not self.use_noise_col and self.layering != 'overlapping':
     color_results = prev_outputs
     remove_unused_inputs()
-
   elif self.use_noise_col and self.layering == 'overlapping':
     color_results['Image'] = []
     if not self.use_random_col:
@@ -408,7 +405,6 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
     links.new(group_inputs['Color Noise Scale'], nodes['Randomize Texture HSV'].inputs['Noise Scale'])
     links.new(group_inputs['Color Noise Detail'], nodes['Randomize Texture HSV'].inputs['Noise Detail'])
     links.new(group_inputs['Color Noise Warp'], nodes['Randomize Texture HSV'].inputs['Noise Warp'])
-
   elif not self.use_noise_col and self.layering == 'overlapping':
     color_results['Image'] = []
     nodes.remove(nodes['Randomize Texture HSV'])
