@@ -5,7 +5,7 @@ def unwrap(self, context, objects):
   context.area.type = "VIEW_3D"
   context.area.ui_type = "VIEW_3D"
 
-  margin_percent = 0.016
+  margin_percent = 0.025
 
   # Unwraps each object individually
   for obj in objects:

@@ -135,7 +135,6 @@ def bake_scatter(self, context, objects):
         texture.image.filepath_raw = f"{preferences.path}\{texture_file_name}.{file_types[file_format]}"
         save_image(context, texture.image, format_settings)
 
-        # Denoise image
         if self.denoise:
           denoise_image(context, texture.image, format_settings)
 
@@ -161,7 +160,6 @@ def bake_scatter(self, context, objects):
         to_sockets = [x.to_socket for x in output.links]
         for socket in to_sockets:
           links.new(scatter_node.outputs[texture_node_name], socket)
-        # TODO: Move sockets to right below the origional
 
     # Moves Displacement to the bottom
     output_count = len(scatter_node.outputs)
@@ -411,7 +409,7 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
       'samples': self.samples,
       'margin_type': 'ADJACENT_FACES',
       'denoise': False,
-      'margin': int((self.width + self.height / 4) / 64)
+      'margin': int((self.width + self.height / 4) / 128)
     })
     selected_object_names = [x.name for x in context.selected_objects]
     active_material = context.active_object.active_material
