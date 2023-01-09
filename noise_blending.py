@@ -133,7 +133,8 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         blur_socket.min_value = 0
         blur_socket.max_value = 1
         blending_links.new(group_input.outputs["Noise Blending"], blur_range.inputs[0])
-        separate_hsv = blending_nodes.new("ShaderNodeSeparateHSV")
+        separate_hsv = blending_nodes.new("ShaderNodeSeparateColor")
+        separate_hsv.mode = 'HSV'
         separate_hsv.location = [-200, 0]
         blending_links.new(noise.outputs["Color"], separate_hsv.inputs["Color"])
         group_output = blending_nodes.new("NodeGroupOutput")
@@ -182,7 +183,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
                         mix = blending_nodes.new("ShaderNodeMixRGB")
                         mix_nodes.append(mix)
                         mix.location = [socket_idx * 200, channel_idx * -500]
-                        blending_links.new(blending_nodes['Separate HSV'].outputs[0], greater.inputs[0])
+                        blending_links.new(blending_nodes['Separate Color'].outputs[0], greater.inputs[0])
                         blending_links.new(greater.outputs[0], mix.inputs[0])
                     if socket_idx == 0:
                         next_socket = channel[socket_idx + 1]
