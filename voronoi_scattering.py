@@ -503,7 +503,7 @@ def manage_alpha(self, scatter_node, scatter_sources, color_results, transparenc
     else:
       new_input_name = channel
     if new_input_name not in scatter_node.inputs:
-      scatter_node.inputs.new('NodeSocketColor', new_input_name)
+      scatter_node.node_tree.inputs.new('NodeSocketColor', new_input_name)
     links.new(nodes['Group Input'].outputs[new_input_name], alpha_over_node.inputs[1])
     if channel in ['Bump', 'Roughness', 'Glossiness', 'Specular', 'Albedo']:
       scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5, 1]
