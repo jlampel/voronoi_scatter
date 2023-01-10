@@ -491,20 +491,21 @@ def manage_alpha(self, scatter_node, scatter_sources, color_results, transparenc
     get_alpha_node = nodes.new("ShaderNodeMath")
     get_alpha_node.operation = 'GREATER_THAN'
     get_alpha_node.inputs[1].default_value = 0
-    get_alpha_node.location = [0, output.node.location[1]]
+    get_alpha_node.location = [output.node.location[0] + 500, output.node.location[1]]
     links.new(nodes['Scatter Source'].outputs[1], get_alpha_node.inputs[0])
-    alpha_over_node = nodes.new("ShaderNodeMixRGB")
+    alpha_over_node = nodes.new("ShaderNodeMix")
+    alpha_over_node.data_type = 'RGBA'
     alpha_over_node.location = [get_alpha_node.location[0] + 175, get_alpha_node.location[1] - 50]
     links.new(get_alpha_node.outputs[0], alpha_over_node.inputs[0])
-    links.new(output, alpha_over_node.inputs[2])
-    links.new(alpha_over_node.outputs[0], nodes['Group Output'].inputs[channel])
+    links.new(output, alpha_over_node.inputs[7])
+    links.new(alpha_over_node.outputs[2], nodes['Group Output'].inputs[channel])
     if channel == 'Image':
       new_input_name = 'Background'
     else:
       new_input_name = channel
     if new_input_name not in scatter_node.inputs:
       scatter_node.node_tree.inputs.new('NodeSocketColor', new_input_name)
-    links.new(nodes['Group Input'].outputs[new_input_name], alpha_over_node.inputs[1])
+    links.new(nodes['Group Input'].outputs[new_input_name], alpha_over_node.inputs[6])
     if channel in ['Bump', 'Roughness', 'Glossiness', 'Specular', 'Albedo']:
       scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5, 1]
     elif channel == 'AO':
@@ -685,7 +686,7 @@ def setup_scatter_node(self, context, selected_nodes, should_remove_images=True)
   randomize_cell_outputs = randomize_cell_colors(self, context, scatter_node, scatter_sources, blending_results)
   randomize_color_outputs = randomize_texture_colors(self, context, scatter_node, scatter_sources, randomize_cell_outputs)
   corrected_normal_outputs = correct_normals(self, context, scatter_node, randomize_color_outputs)
-  manage_alpha(self, scatter_node, scatter_sources, blending_results, transparency)
+  manage_alpha(self, scatter_node, scatter_sources, corrected_normal_outputs, transparency)
   cleanup_layering(self, scatter_node, scatter_sources)
   cleanup_options(self, scatter_node, scatter_coordinates)
   cleanup_sockets(self, scatter_node, transparency)
