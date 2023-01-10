@@ -7,6 +7,10 @@ search_exclude: false
 
 # Changelog
 
+## v1.8
+- Fixed issues related to Blender new Mix Color node
+- Bumped minimum supported version to Blender 3.4
+
 ## v1.7
 - Improved PBR keyword detection
 - Made the PBR keywords editable via the add-on's preferences
