@@ -62,6 +62,10 @@ Examples:
 
 The full list of accepted terms can be found (and changed!) in the file defaults.py.
 
+The PBR output sockets are correctly colored according to their data type. 
+
+If you scatter a normal map, the Normal output will be a purple vector socket and not a yellow color socket, indicating that it can be plugged directly into a shader and should not be run through a normal map node. 
+
 ## Cell Blending
 
 This option enables an option that mixes in white noise to the voronoi coordinates so that the boundaries between cells appears to blur without blurring the texture. This is incredibly helpful for hiding seams. The quality of this blending depends on the number of samples in both Eevee and Cycles. Because it uses white noise, it will cause displacement textures to appear jagged. The solution, if you need to use both edge blur and displacement textures, is to bake the displacement map before your final render, which will smooth everything out.
