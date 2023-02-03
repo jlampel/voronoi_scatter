@@ -29,7 +29,7 @@ from copy import copy
 from .defaults import texture_names, default_view_transforms, node_names
 
 def append_node(self, nodes, node_tree_name):
-  path = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'scatter_nodes.blend\\NodeTree\\')
+  path = bpy.path.native_pathsep(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets\scatter_nodes.blend\\NodeTree\\'))
 
   node_group = nodes.new("ShaderNodeGroup")
   initial_nodetrees = set(bpy.data.node_groups)
