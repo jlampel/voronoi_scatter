@@ -9,6 +9,7 @@ search_exclude: false
 
 ## v1.9
 - Fixed issue with noise blending due to API change in Blender 3.5
+- Added ability to add textures while re-scattering
 - Improved initial location of scatter node
 - Automatically set transparent backgrounds based on selected Principled or Diffuse BSDF
 - Fixed automatic connection to the material output node

@@ -130,7 +130,7 @@ def get_baked_sources(selected_nodes):
   baked_nodes = []
   if selected_nodes:
     for node in selected_nodes:
-      if get_scatter_sources([node]) and 'TEX_IMAGE' in [x.type for x in node.node_tree.nodes]:
+      if node.bl_idname == 'ShaderNodeGroup' and get_scatter_sources([node]) and 'TEX_IMAGE' in [x.type for x in node.node_tree.nodes]:
         baked_nodes.append(node)
   return baked_nodes
 

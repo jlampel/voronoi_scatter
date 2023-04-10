@@ -912,11 +912,15 @@ def voronoi_scatter(self, context, prev_scatter_sources):
   prev_values = {}
   if prev_scatter_sources:
     # This only supports re-scattering one node at a time
-    prev_scatter_node = context.selected_nodes[0]
+    prev_scatter_nodes = [x for x in selected_nodes if get_scatter_sources(context.selected_nodes)]
+    prev_scatter_node = prev_scatter_nodes[0]
     for input in prev_scatter_node.inputs:
       if input.name not in defaults.section_labels:
         prev_values[input.name] = input.default_value
-    selected_nodes = extract_images(self, selected_nodes)
+    prev_textures = extract_images(self, selected_nodes)
+    new_textures = [x for x in selected_nodes if (x.bl_idname == 'ShaderNodeTexImage' and x.image)]
+    selected_nodes = prev_textures + new_textures
+
 
   if self.layering == 'coordinates':
     scatter_node = create_coordinates_node(self, context, selected_nodes)
