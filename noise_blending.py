@@ -102,7 +102,8 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         white_noise = blending_nodes.new("ShaderNodeTexWhiteNoise")
         white_noise.location = [-800, 0]
         white_noise.noise_dimensions = '2D'
-        blending_links.new(group_input.outputs[-1], white_noise.inputs[0])
+        vector_socket = blending_node.node_tree.inputs.new("NodeSocketVector", "Vector")
+        blending_links.new(group_input.outputs['Vector'], white_noise.inputs[0])
         blending_inputs["Vector"].hide_value = True
         vector_mix = blending_nodes.new("ShaderNodeMixRGB")
         vector_mix.location = [-600, 0]
@@ -121,14 +122,17 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         noise.inputs['Roughness'].default_value = 0.75
         noise.inputs['Detail'].default_value = 5
         blending_links.new(vector_mix.outputs["Color"], noise.inputs["Vector"])
-        blending_links.new(group_input.outputs[-1], noise.inputs["Scale"])
-        blending_inputs["Scale"].name = "Noise Scale"
-        blending_links.new(group_input.outputs[-1], noise.inputs["Detail"])
-        blending_inputs["Detail"].name = "Noise Detail"
-        blending_links.new(group_input.outputs[-1], noise.inputs["Roughness"])
-        blending_inputs["Roughness"].name = "Noise Roughness"
-        # blending_links.new(group_input.outputs[-1], noise.inputs["Distortion"])
-        # blending_inputs["Distortion"].name = "Noise Distortion"
+        scale_socket = blending_node.node_tree.inputs.new("NodeSocketFloat", "Noise Scale")
+        blending_node.inputs['Noise Scale'].default_value = 5
+        blending_links.new(group_input.outputs["Noise Scale"], noise.inputs["Scale"])
+        detail_socket = blending_node.node_tree.inputs.new("NodeSocketFloat", "Noise Detail")
+        blending_node.inputs['Noise Detail'].default_value = 2
+        blending_links.new(group_input.outputs["Noise Detail"], noise.inputs["Detail"])
+        roughness_socket = blending_node.node_tree.inputs.new("NodeSocketFloatFactor", "Noise Roughness")
+        roughness_socket.min_value = 0
+        roughness_socket.max_value = 1
+        blending_node.inputs['Noise Roughness'].default_value = 0.5
+        blending_links.new(group_input.outputs["Noise Roughness"], noise.inputs["Roughness"])
         blur_socket = blending_node.node_tree.inputs.new("NodeSocketFloatFactor", "Noise Blending")
         blur_socket.min_value = 0
         blur_socket.max_value = 1

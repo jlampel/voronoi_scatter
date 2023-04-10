@@ -24,7 +24,7 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 from bpy.types import (Operator)
-from .utilities import append_node, mode_toggle
+from .utilities import append_node, mode_toggle, is_shader
 from .defaults import node_names
 
 def connect_vector(links, nodes, from_node, to_node):
@@ -40,13 +40,25 @@ def create_randomize_node(self, context):
     links = context.selected_nodes[0].id_data.links
     for node in context.selected_nodes:
         randomize_node = append_node(self, nodes, node_names['randomize_noise_hsv'])
-        randomize_node.width = 200
-        randomize_node.location = [node.location[0] + node.width + 50, node.location[1]]
-        if node.outputs[0].links:
-            for link in node.outputs[0].links:
-                links.new(randomize_node.outputs[0], node.outputs[0].links[0].to_socket)
-        links.new(node.outputs[0], randomize_node.inputs[0])
         connect_vector(links, nodes, node, randomize_node)
+        randomize_node.width = 200
+        if is_shader(node):
+            randomize_node.location = [node.location[0] - randomize_node.width - 50, node.location[1]]
+            if hasattr(node.inputs, 'Base Color'):
+                to_socket = node.inputs['Base Color']
+            elif hasattr(node.inputs, 'Color'):
+                to_socket = node.inputs['Color']
+            else: 
+                to_socket = node.inputs[0]
+            if to_socket.links:
+                links.new(to_socket.links[0].from_socket, randomize_node.inputs[0])
+            links.new(randomize_node.outputs[0], to_socket)
+        else:
+            randomize_node.location = [node.location[0] + node.width + 50, node.location[1]]
+            if node.outputs[0].links:
+                for link in node.outputs[0].links:
+                    links.new(randomize_node.outputs[0], node.outputs[0].links[0].to_socket)
+            links.new(node.outputs[0], randomize_node.inputs[0])
 
 
 class NODE_OT_randomize_col(Operator):

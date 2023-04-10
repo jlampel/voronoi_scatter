@@ -23,11 +23,12 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 
 import bpy
+import pprint
 from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 from pprint import pprint
 from . import defaults
-from .utilities import get_scatter_sources
+from .utilities import get_scatter_sources, get_groups
 
 def extract_images(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
@@ -51,12 +52,21 @@ def extract_images(self, selected_nodes):
             new_image.extension = self.extension
             if (image_idx + 1) % 4 == 0: columns += 1
         return new_textures
-
+            
 def remove_scatter_nodes(selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
+    trees_to_delete = []
+    groups = get_groups(selected_nodes)
+    trees_to_delete.extend(groups)
+
     for node in selected_nodes:
         if get_scatter_sources([node]):
             nodes.remove(node)
+
+    for tree in [x.name for x in trees_to_delete]:
+        if tree in [x.name for x in bpy.data.node_groups]:
+            bpy.data.node_groups.remove(bpy.data.node_groups[tree])
+
 
 class NODE_OT_unscatter(Operator):
     bl_label = "Un-Scatter"

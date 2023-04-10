@@ -214,6 +214,23 @@ def bake_scatter(self, context, objects):
         if input.name != 'UV Map':
           input.hide = True
 
+def bake_vectors(self, context, objects):
+  selected_nodes = context.selected_nodes
+  nodes = selected_nodes[0].id_data.nodes
+  links = selected_nodes[0].id_data.links
+  scatter_nodes = [x for x in selected_nodes if get_scatter_sources([x])]
+  # TODO: Check if layered scatter nodes can bake
+  for scatter_node in scatter_nodes:
+    coordinates_nodes = [x for x in scatter_node.node_tree.nodes if x.label == 'Scatter Coordinates']
+    for coordinates in coordinates_nodes:
+      # Creates a new image 
+      pass
+    
+      # Bakes the vectors to the image
+
+      # Rewires the sockets
+
+      # Hides relavent inputs
 
 class NODE_OT_bake_scatter(bpy.types.Operator):
   bl_label = "Bake Scatter"
@@ -223,6 +240,26 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
   bl_region_type = "UI"
   bl_options = {'REGISTER', 'UNDO'}
 
+
+  objects: bpy.props.EnumProperty(
+    name = "Objects",
+    description = "Choose which objects to bake",
+    items = [
+      ('selected', 'Selected', 'Bakes only the selected objects'),
+      ('texture_set', 'Texture Set', 'Bakes all objects containing this material')
+    ],
+    default = 'texture_set'
+  )
+
+  bake_type: bpy.props.EnumProperty(
+    name="Bake Type",
+    description="Bake the final scatter result or just the vector coordinates",
+    items=[
+      ('combined', 'Result', 'Bakes the final result of the scatter to new image textures for use in other applications'),
+      ('vectors', 'Vectors', 'Bakes the vector coordinates while keeping the original textures. Useful for smoothing out cell and tri-planar blending for displacement while rendering in Blender')
+    ],
+    default='combined'
+  )
 
   Albedo: bpy.props.BoolProperty(
     name="Albedo",
@@ -279,28 +316,7 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     description="Bake the displacement channel",
     default = True
   )
-  width: bpy.props.IntProperty(
-    name = "Width",
-    description = "Resolution in the X direction",
-    default = 1080
-  )
-  height: bpy.props.IntProperty(
-    name = "Height",
-    description = "Resolution in the Y direction",
-    default = 1080
-  )
-  samples: bpy.props.IntProperty(
-    name = "Samples",
-    description = "The number of Cycles samples to bake with",
-    default = 6,
-    min = 1,
-    max = 500
-  )
-  denoise: bpy.props.BoolProperty(
-    name = 'Denoise',
-    description = 'Run denoising on the texture after it is baked.',
-    default = True
-  )
+
   should_unwrap: bpy.props.BoolProperty(
     name = 'Unwrap',
     description = 'Creates a new UV unwrap before baking',
@@ -331,18 +347,33 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     max = 89,
     subtype = 'ANGLE'
   )
-  objects: bpy.props.EnumProperty(
-    name = "Objects",
-    description = "Choose which objects to bake",
-    items = [
-      ('selected', 'Selected', 'Bakes only the selected objects'),
-      ('texture_set', 'Texture Set', 'Bakes all objects containing this material')
-    ],
-    default = 'texture_set'
-  )
   apply_scale: bpy.props.BoolProperty(
     name = 'Apply Scale',
     description = 'Applies scale before unwrapping so that all UVs are consistant',
+    default = True
+  )
+
+  width: bpy.props.IntProperty(
+    name = "Width",
+    description = "Resolution in the X direction",
+    default = 1080
+  )
+  height: bpy.props.IntProperty(
+    name = "Height",
+    description = "Resolution in the Y direction",
+    default = 1080
+  )
+
+  samples: bpy.props.IntProperty(
+    name = "Samples",
+    description = "The number of Cycles samples to bake with",
+    default = 6,
+    min = 1,
+    max = 500
+  )
+  denoise: bpy.props.BoolProperty(
+    name = 'Denoise',
+    description = 'Run denoising on the texture after it is baked.',
     default = True
   )
 
@@ -359,31 +390,33 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
 
     layout.separator()
 
-    channels_column = layout.column(heading = 'Channels')
-    if 'Albedo' in channels:
-      channels_column.prop(self, "Albedo")
-    if 'AO' in channels:
-      channels_column.prop(self, "AO")
-    if 'Metalness' in channels:
-      channels_column.prop(self, "Metalness")
-    if 'Roughness' in channels:
-      channels_column.prop(self, "Roughness")
-    if 'Glossiness' in channels:
-      channels_column.prop(self, "Glossiness")
-    if 'Specular' in channels:
-      channels_column.prop(self, "Specular")
-    if 'Emission' in channels:
-      channels_column.prop(self, "Emission")
-    if 'Alpha' in channels:
-      channels_column.prop(self, "Alpha")
-    if 'Bump' in channels:
-      channels_column.prop(self, "Bump")
-    if 'Normal' in channels:
-      normal_row = channels_column.row()
-      normal_row.enabled = False
-      normal_row.prop(self, "Normal")
-    if 'Displacement' in channels:
-      channels_column.prop(self, "Displacement")
+    # layout.prop(self, "bake_type", expand = True)
+    if self.bake_type == 'combined':
+      channels_column = layout.column(heading = 'Channels')
+      if 'Albedo' in channels:
+        channels_column.prop(self, "Albedo")
+      if 'AO' in channels:
+        channels_column.prop(self, "AO")
+      if 'Metalness' in channels:
+        channels_column.prop(self, "Metalness")
+      if 'Roughness' in channels:
+        channels_column.prop(self, "Roughness")
+      if 'Glossiness' in channels:
+        channels_column.prop(self, "Glossiness")
+      if 'Specular' in channels:
+        channels_column.prop(self, "Specular")
+      if 'Emission' in channels:
+        channels_column.prop(self, "Emission")
+      if 'Alpha' in channels:
+        channels_column.prop(self, "Alpha")
+      if 'Bump' in channels:
+        channels_column.prop(self, "Bump")
+      if 'Normal' in channels:
+        normal_row = channels_column.row()
+        normal_row.enabled = False
+        normal_row.prop(self, "Normal")
+      if 'Displacement' in channels:
+        channels_column.prop(self, "Displacement")
 
     layout.separator()
 
@@ -444,7 +477,12 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
       objects = context.selected_objects
 
     if self.unwrap_method != 'existing': unwrap(self, context, objects)
-    bake_scatter(self, context, objects)
+
+    if self.bake_type == 'combined':
+      bake_scatter(self, context, objects)
+    else:
+      pass
+      # bake_vectors(self, context, objects)
 
     for obj in context.scene.objects:
       if obj.name in selected_object_names:

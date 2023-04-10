@@ -42,7 +42,7 @@ def append_node(self, nodes, node_tree_name):
 
   appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
   appended_node = [x for x in appended_nodetrees if node_tree_name in x.name][0]
-  node_group.node_tree = bpy.data.node_groups[appended_node.name].copy()
+  node_group.node_tree = bpy.data.node_groups[appended_node.name]
   node_group.node_tree.name = node_tree_name
   return node_group
 
@@ -108,6 +108,24 @@ def get_scatter_sources(selected_nodes):
   return scatter_sources
 
 
+def get_groups(nodes):
+    # Could be changed to use recursion
+    groups = []
+    for node in nodes:
+        if node.bl_idname == 'ShaderNodeGroup':
+            groups.append(node.node_tree)
+            for sub_node in node.node_tree.nodes:
+                if sub_node.bl_idname == 'ShaderNodeGroup':
+                    groups.append(sub_node.node_tree)
+                    for sub_sub_node in sub_node.node_tree.nodes:
+                        if sub_sub_node.bl_idname == 'ShaderNodeGroup':
+                            groups.append(sub_sub_node.node_tree)
+                            for sub_sub_sub_node in sub_sub_node.node_tree.nodes:
+                                if sub_sub_sub_node.bl_idname == 'ShaderNodeGroup':
+                                    groups.append(sub_sub_sub_node.node_tree)
+    return groups
+
+
 def get_baked_sources(selected_nodes):
   baked_nodes = []
   if selected_nodes:
@@ -128,6 +146,28 @@ def has_scatter_uvs(selected_nodes):
           has_uvs = True
           break
   return has_uvs
+
+
+def is_shader(node):
+  shader_types = [
+    "ShaderNodeBsdfAnisotropic",
+    "ShaderNodeBsdfDiffuse",
+    "ShaderNodeEmission",
+    "ShaderNodeBsdfGlass",
+    "ShaderNodeBsdfGlossy",
+    "ShaderNodeBsdfHair",
+    "ShaderNodeBsdfPrincipled",
+    "ShaderNodeVolumePrincipled",
+    "ShaderNodeBsdfRefraction",
+    "ShaderNodeSubsurfaceScattering",
+    "ShaderNodeBsdfToon",
+    "ShaderNodeBsdfTranslucent",
+    "ShaderNodeBsdfTransparent",
+    "ShaderNodeBsdfVelvet",
+    "ShaderNodeVolumeAbsorption",
+    "ShaderNodeVolumeScatter"
+  ]
+  return node.bl_idname in shader_types
 
 
 def name_array_to_string(name_array):

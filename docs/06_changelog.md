@@ -7,6 +7,15 @@ search_exclude: false
 
 # Changelog
 
+## v1.9
+- Fixed issue with noise blending due to API change in Blender 3.5
+- Improved initial location of scatter node
+- Automatically set transparent backgrounds based on selected Principled or Diffuse BSDF
+- Fixed automatic connection to the material output node
+- Fixed incorrect vectors when using Noise Blended scatter method
+- Added HSV Noise as input rather than output when used on a shader
+- Added purge for inner group nodes while unscattering to reduce clutter
+
 ## v1.8
 - Fixed issues related to Blender new Mix Color node
 - Bumped minimum supported version to Blender 3.4
