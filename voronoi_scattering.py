@@ -912,7 +912,7 @@ def voronoi_scatter(self, context, prev_scatter_sources):
   prev_values = {}
   if prev_scatter_sources:
     # This only supports re-scattering one node at a time
-    prev_scatter_nodes = [x for x in selected_nodes if get_scatter_sources(context.selected_nodes)]
+    prev_scatter_nodes = [x for x in selected_nodes if x.type == 'GROUP' and get_scatter_sources([x])]
     prev_scatter_node = prev_scatter_nodes[0]
     for input in prev_scatter_node.inputs:
       if input.name not in defaults.section_labels:
