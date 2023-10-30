@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@ import bpy
 from .utilities import get_scatter_sources, get_baked_sources, mode_toggle
 from .defaults import texture_names
 
-def clear_bake(context):
+def clear_image_bake(context):
   selected_nodes = context.selected_nodes
   links = selected_nodes[0].id_data.links
   baked_nodes = [x for x in selected_nodes if get_baked_sources([x])]
@@ -70,7 +70,7 @@ class NODE_OT_clear_baked_scatter(bpy.types.Operator):
   def execute(self, context):
     # switching modes prevents context errors
     prev_mode = mode_toggle(context, 'OBJECT')
-    clear_bake(context)
+    clear_image_bake(context)
     mode_toggle(context, prev_mode)
 
     return {'FINISHED'}

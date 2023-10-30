@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,8 +23,8 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 import bpy, mathutils
 from .utilities import get_scatter_sources, has_scatter_uvs, mode_toggle, save_image
-from .defaults import texture_names, data_channels, detail_channels, data_color_spaces, file_types
-from .clear_bake import clear_bake
+from .defaults import texture_names, data_channels, detail_channels, data_color_spaces, file_types, node_names
+from .clear_bake import clear_image_bake
 from .unwrap import unwrap
 from .denoise_image import denoise_image
 from copy import copy
@@ -65,11 +65,102 @@ def is_in_texture_set(object, active_material):
   return False
 
 
+def create_texture(self, nodes, texture_node_name, texture_file_name, output_name, location):
+  texture = nodes.new('ShaderNodeTexImage')
+  texture.name = texture_node_name
+  texture.location = location
+  texture.image = bpy.data.images.new(texture_file_name, self.width, self.height, float_buffer = True, is_data = True)
+  color_spaces = [x.name for x in bpy.types.ColorManagedInputColorspaceSettings.bl_rna.properties['name'].enum_items]
+  if output_name in data_channels or output_name in detail_channels:
+    for space in data_color_spaces:
+      if space in color_spaces:
+        texture.image.colorspace_settings.name = space
+        break
+  else:
+    texture.image.colorspace_settings.name = 'sRGB'
+  return texture
+
+
+def save_bake(context, preferences, texture, texture_file_name, output_name):
+  if output_name in detail_channels:
+    file_format = preferences.data_format
+  else:
+    file_format = preferences.format
+
+  if output_name in detail_channels and preferences.data_format == 'OPEN_EXR':
+    color_depth = preferences.data_float
+  elif output_name in detail_channels:
+    color_depth = preferences.data_depth
+  elif preferences.format == 'OPEN_EXR':
+    color_depth = preferences.color_float
+  else:
+    color_depth = preferences.color_depth
+
+  format_settings = {
+    'format': file_format,
+    'color_depth': color_depth,
+  }
+  texture.image.filepath_raw = f"{preferences.path}\{texture_file_name}.{file_types[file_format]}"
+  save_image(context, texture.image, format_settings)
+  return format_settings
+
+
+def setup_bake_uvs(self, scatter_node, new_textures):
+  # TODO: Make sure the right UVs are always used
+  # TODO: Make sure object has UVs!
+  if 'UV Map' not in [x.name for x in scatter_node.inputs]:
+    uv_input = scatter_node.node_tree.inputs.new('NodeSocketVector', 'UV Map')
+    uv_input.hide_value = True
+  group_input = scatter_node.node_tree.nodes['Group Input']
+  mixed_uvs = scatter_node.node_tree.nodes['UVs']
+  scatter_node.node_tree.links.new(group_input.outputs['UV Map'], scatter_node.node_tree.nodes['User UVs'].inputs[0])
+  for texture in new_textures:
+    scatter_node.node_tree.links.new(mixed_uvs.outputs[0], texture.inputs[0])
+  if not self.unwrap_method == 'existing':
+    scatter_node.node_tree.nodes['UV Map'].uv_map = "ScattershotUVs"
+
+
+def get_material_output(context):
+  if context.selected_nodes[0].id_data.get_output_node('CYCLES'):
+    return context.selected_nodes[0].id_data.get_output_node('CYCLES')
+  else:
+    return context.selected_nodes[0].id_data.nodes.new('ShaderNodeOutputMaterial')
+
+
+def connect_output(context, material_output, channel_output):
+  links = context.selected_nodes[0].id_data.links
+  prev_output_socket = None
+  if material_output.inputs[0].links:
+    prev_output_socket = material_output.inputs[0].links[0].from_socket
+  if channel_output.name == 'Normal':
+    # TODO: Properly output tangent space normals
+    pass
+  links.new(channel_output, material_output.inputs[0])
+  return prev_output_socket
+
+
+def cleanup_output_connections(links, prev_output_socket, material_output):
+  if prev_output_socket:
+    links.new(prev_output_socket, material_output.inputs[0])
+  else:
+    links.remove(material_output.inputs[0].links[0])
+
+
+def bake_image(objects, nodes, texture):
+  nodes.active = texture
+  # TODO: Bake just the material that has the scatter, not the entire object
+  bpy.ops.object.select_all(action='DESELECT')
+  for obj in objects:
+    obj.select_set(True)
+  bpy.ops.object.bake()
+
+
 def bake_scatter(self, context, objects):
   preferences = context.preferences.addons[__package__].preferences
   selected_nodes = context.selected_nodes
   nodes = selected_nodes[0].id_data.nodes
   links = selected_nodes[0].id_data.links
+  material_output = get_material_output(context)
 
   only_displacement = self.Displacement and all(x == False for x in [
     self.Albedo, self.AO, self.Metalness, self.Roughness, self.Glossiness,
@@ -83,7 +174,7 @@ def bake_scatter(self, context, objects):
     new_textures = []
     bake_outputs = [x for x in channel_outputs if x.name in texture_names.keys()]
 
-    clear_bake(context)
+    clear_image_bake(context)
 
     for output_idx, output in enumerate(bake_outputs):
       if getattr(self, output.name) or output.name == 'Image':
@@ -103,69 +194,18 @@ def bake_scatter(self, context, objects):
         if texture_node_name in [x.name for x in group_nodes]:
           texture = group_nodes[texture_node_name]
         else:
-          texture = group_nodes.new('ShaderNodeTexImage')
+          texture = create_texture(self, group_nodes, texture_node_name, texture_file_name, output.name, [3000, -300 * output_idx])
           new_textures.append(texture)
-          texture.name = texture_node_name
-          texture.location = [3000, -300 * output_idx]
-          texture.image = bpy.data.images.new(texture_file_name, self.width, self.height, float_buffer = True, is_data = True)
-          color_spaces = [x.name for x in bpy.types.ColorManagedInputColorspaceSettings.bl_rna.properties['name'].enum_items]
-          if output.name in data_channels or output.name in detail_channels:
-            for space in data_color_spaces:
-              if space in color_spaces:
-                texture.image.colorspace_settings.name = space
-                break
-          else:
-            texture.image.colorspace_settings.name = 'sRGB'
 
-        # Links the channel output to the material output
-        if selected_nodes[0].id_data.get_output_node('CYCLES'):
-          material_output = selected_nodes[0].id_data.get_output_node('CYCLES')
-        else:
-          material_output = nodes.new('ShaderNodeOutputMaterial')
-        if material_output.inputs[0].links:
-          current_output_socket = material_output.inputs[0].links[0].from_socket
-        else:
-          current_output_socket = ''
-        if output.name == 'Normal':
-          # TODO: Properly output tangent space normals
-          pass
-        links.new(output, material_output.inputs[0])
+        current_output_socket = connect_output(context, output)
 
         # Bakes the texture
-        group_nodes.active = texture
-        for obj in objects: obj.select_set(True)
-        bpy.ops.object.bake()
-
-        # Saves the texture
-        if output.name in detail_channels:
-          file_format = preferences.data_format
-        else:
-          file_format = preferences.format
-
-        if output.name in detail_channels and preferences.data_format == 'OPEN_EXR':
-          color_depth = preferences.data_float
-        elif output.name in detail_channels:
-          color_depth = preferences.data_depth
-        elif preferences.format == 'OPEN_EXR':
-          color_depth = preferences.color_float
-        else:
-          color_depth = preferences.color_depth
-
-        format_settings = {
-          'format': file_format,
-          'color_depth': color_depth,
-        }
-        texture.image.filepath_raw = f"{preferences.path}\{texture_file_name}.{file_types[file_format]}"
-        save_image(context, texture.image, format_settings)
-
+        bake_image(objects, group_nodes, texture)
+        format_settings = save_bake(context, preferences, texture, texture_file_name, output.name)
         if self.denoise:
           denoise_image(context, texture.image, format_settings)
 
-        # Cleans up output connections
-        if current_output_socket:
-          links.new(current_output_socket, material_output.inputs[0])
-        else:
-          links.remove(material_output.inputs[0].links[0])
+        cleanup_output_connections(links, current_output_socket, material_output)
 
         # Links texture to group node
         if texture_node_name not in [x.name for x in scatter_node.outputs]:
@@ -191,19 +231,7 @@ def bake_scatter(self, context, objects):
         scatter_node.node_tree.outputs.move(output_idx, len(scatter_node.node_tree.outputs) - 2)
         break
 
-    # Sets up nodes for UVs
-    # TODO: Make sure the right UVs are always used
-    # TODO: Make sure object has UVs!
-    if 'UV Map' not in [x.name for x in scatter_node.inputs]:
-      uv_input = scatter_node.node_tree.inputs.new('NodeSocketVector', 'UV Map')
-      uv_input.hide_value = True
-    group_input = scatter_node.node_tree.nodes['Group Input']
-    mixed_uvs = scatter_node.node_tree.nodes['UVs']
-    scatter_node.node_tree.links.new(group_input.outputs['UV Map'], scatter_node.node_tree.nodes['User UVs'].inputs[0])
-    for texture in new_textures:
-      scatter_node.node_tree.links.new(mixed_uvs.outputs[0], texture.inputs[0])
-    if not self.unwrap_method == 'existing':
-      scatter_node.node_tree.nodes['UV Map'].uv_map = "ScattershotUVs"
+    setup_bake_uvs(self, scatter_node, new_textures)
 
     # Hides unused sockets
     if not only_displacement:
@@ -214,28 +242,81 @@ def bake_scatter(self, context, objects):
         if input.name != 'UV Map':
           input.hide = True
 
-def bake_vectors(self, context, objects):
+
+def bake_coordinates(self, context, objects):
+  preferences = context.preferences.addons[__package__].preferences
   selected_nodes = context.selected_nodes
   nodes = selected_nodes[0].id_data.nodes
   links = selected_nodes[0].id_data.links
   scatter_nodes = [x for x in selected_nodes if get_scatter_sources([x])]
-  # TODO: Check if layered scatter nodes can bake
+  material_output = get_material_output(context)
+
   for scatter_node in scatter_nodes:
-    coordinates_nodes = [x for x in scatter_node.node_tree.nodes if x.label == 'Scatter Coordinates']
-    for coordinates in coordinates_nodes:
-      # Creates a new image 
-      pass
-    
-      # Bakes the vectors to the image
+    group_nodes = scatter_node.node_tree.nodes
+    group_links = scatter_node.node_tree.links
+    new_coordinates_textures = []
+    new_cell_color_textures = []
+    coordinates_nodes = [x for x in group_nodes if x.label == node_names['scatter_coordinates']]
+    bake_socket = scatter_node.node_tree.outputs.new('NodeSocketColor', 'Bake Output')
+    prev_output_socket = connect_output(context, material_output, scatter_node.outputs['Bake Output'])
 
-      # Rewires the sockets
+    for coordinates_node in coordinates_nodes:
+      coordinates_node.hide = True
 
-      # Hides relavent inputs
+      # Bake Vectors
+      group_links.new(coordinates_node.outputs[0], group_nodes['Group Output'].inputs['Bake Output'])
+      bake_name = f'{scatter_node.name}_{coordinates_node.name}_vector'
+      if bake_name in [x.name for x in group_nodes]:
+        texture = group_nodes[bake_name]
+      else:
+        location = [coordinates_node.location[0], coordinates_node.location[1] - 150]
+        texture = create_texture(self, group_nodes, bake_name, bake_name, 'Normal', location)
+        texture.hide = True
+        new_coordinates_textures.append(texture)
+      bake_image(objects, group_nodes, texture)
+      format_settings = save_bake(context, preferences, texture, bake_name, 'Normal')
+      if self.denoise:
+        denoise_image(context, texture.image, format_settings)
+      # Replace outputs
+      for link in coordinates_node.outputs[0].links:
+        group_links.new(texture.outputs[0], link.to_socket)
+
+      # Bake Random Colors
+      '''
+      if coordinates_node.outputs[1].links:
+        # Set up nodes for baking
+        group_links.new(coordinates_node.outputs[1], bake_output)
+        bake_name = f'{scatter_node.name}_{coordinates_node.name}_color'
+        if bake_name in [x.name for x in group_nodes]:
+          texture = group_nodes[bake_name]
+        else:
+          location = [coordinates_node.location[0], coordinates_node.location[1] - 600]
+          texture = create_texture(self, group_nodes, bake_name, bake_name, 'color', location)
+          new_coordinates_textures.append(texture)
+        # Bake Texture
+        # TODO: Bake just the material that has the scatter, not the whole object
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in objects:
+          obj.select_set(True)
+        bpy.ops.object.bake()
+        format_settings = save_bake(context, preferences, texture, bake_name, 'color')
+        if self.denoise:
+          denoise_image(context, texture.image, format_settings)
+        # Replace outputs
+        for link in coordinates_node.outputs[1].links:
+          group_links.new(texture.outputs[1], link.to_socket)
+      '''
+
+
+    setup_bake_uvs(self, scatter_node, new_coordinates_textures + new_cell_color_textures)
+    cleanup_output_connections(links, prev_output_socket, material_output)
+    scatter_node.node_tree.outputs.remove(bake_socket)
+
 
 class NODE_OT_bake_scatter(bpy.types.Operator):
   bl_label = "Bake Scatter"
   bl_idname = "node.bake_scatter"
-  bl_description = "Bakes the procedural result to new image textures using UV coordinates."
+  bl_description = "Bakes the procedural result to new image textures using UV coordinates"
   bl_space_type = "NODE_EDITOR"
   bl_region_type = "UI"
   bl_options = {'REGISTER', 'UNDO'}
@@ -250,17 +331,15 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     ],
     default = 'texture_set'
   )
-
-  bake_type: bpy.props.EnumProperty(
-    name="Bake Type",
-    description="Bake the final scatter result or just the vector coordinates",
-    items=[
-      ('combined', 'Result', 'Bakes the final result of the scatter to new image textures for use in other applications'),
-      ('vectors', 'Vectors', 'Bakes the vector coordinates while keeping the original textures. Useful for smoothing out cell and tri-planar blending for displacement while rendering in Blender')
+  method: bpy.props.EnumProperty(
+    name="Bake",
+    description="Bakes either the scattered coordinates passed to the images or the final output of each channel",
+    items = [
+      ('coordinates', 'Coordinates', "Bakes the coordinates passed to the images. Best for scattering displacement over large surfaces when rendering in Blender"),
+      ('result', 'Result', "Bakes the final output of each channel. Best for exporting the result to other apps")
     ],
-    default='combined'
+    default="result"
   )
-
   Albedo: bpy.props.BoolProperty(
     name="Albedo",
     description="Bake the albedo channel",
@@ -316,7 +395,6 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     description="Bake the displacement channel",
     default = True
   )
-
   should_unwrap: bpy.props.BoolProperty(
     name = 'Unwrap',
     description = 'Creates a new UV unwrap before baking',
@@ -352,7 +430,6 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     description = 'Applies scale before unwrapping so that all UVs are consistant',
     default = True
   )
-
   width: bpy.props.IntProperty(
     name = "Width",
     description = "Resolution in the X direction",
@@ -363,7 +440,6 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     description = "Resolution in the Y direction",
     default = 1080
   )
-
   samples: bpy.props.IntProperty(
     name = "Samples",
     description = "The number of Cycles samples to bake with",
@@ -378,20 +454,23 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
   )
 
   def draw(self, context):
-    scatter_nodes = [x for x in context.selected_nodes if get_scatter_sources([x])]
-    channels = []
-    for scatter_node in scatter_nodes:
-      for output in scatter_node.outputs:
-        channels.append(output.name)
 
     layout = self.layout
     layout.use_property_split = True
-    layout.prop(self, "objects")
 
+    layout.prop(self, 'method', expand=True)
     layout.separator()
 
-    # layout.prop(self, "bake_type", expand = True)
-    if self.bake_type == 'combined':
+    if self.method == 'result':
+      layout.prop(self, "objects")
+      layout.separator()
+
+      scatter_nodes = [x for x in context.selected_nodes if get_scatter_sources([x])]
+      channels = []
+      for scatter_node in scatter_nodes:
+        for output in scatter_node.outputs:
+          channels.append(output.name)
+
       channels_column = layout.column(heading = 'Channels')
       if 'Albedo' in channels:
         channels_column.prop(self, "Albedo")
@@ -418,7 +497,7 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
       if 'Displacement' in channels:
         channels_column.prop(self, "Displacement")
 
-    layout.separator()
+      layout.separator()
 
     uv = layout.column(heading="UVs")
     uv.prop(self, "should_unwrap")
@@ -442,7 +521,6 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     layout.prop(self, "denoise")
 
     layout.separator()
-
 
   @classmethod
   def poll(cls, context):
@@ -471,29 +549,27 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     active_material = context.active_object.active_material
     active_obj_name = copy(context.active_object.name)
 
-    if self.objects == 'texture_set':
+    if self.method == 'coordinates' or self.objects == 'texture_set':
       objects = [x for x in context.scene.objects if x.material_slots.items() and is_in_texture_set(x, active_material)]
     else:
       objects = context.selected_objects
 
-    if self.unwrap_method != 'existing': unwrap(self, context, objects)
+    # if self.unwrap_method != 'existing': unwrap(self, context, objects)
 
-    if self.bake_type == 'combined':
-      bake_scatter(self, context, objects)
+    if self.method == 'coordinates':
+      bake_coordinates(self, context, objects)
     else:
-      pass
-      # bake_vectors(self, context, objects)
+      bake_scatter(self, context, objects)
 
     for obj in context.scene.objects:
-      if obj.name in selected_object_names:
-        obj.select_set(True)
-      else:
-        obj.select_set(False)
+      obj.select_set(True) if obj.name in selected_object_names else obj.select_set(False)
     context.view_layer.objects.active = bpy.data.objects[active_obj_name]
     set_bake_properties(context.scene, prev_bake_properties)
     mode_toggle(context, prev_mode)
 
     return {'FINISHED'}
+
+
 
 def register():
   bpy.utils.register_class(NODE_OT_bake_scatter)

@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -145,7 +145,7 @@ node_names = {
   "randomize_noise_hsv": "Noise Randomize HSV",
   "randomize_cell_value": "Randomize Cell Value",
   "randomize_noise_value": "Noise Randomize Value",
-  "scatter_coordinates": "Scatter Voronoi Coordinates",
+  "scatter_coordinates": "Scatter Coordinates",
   "scatter_source": "Scatter Source",
   "scatter_source_empty": "Scatter Source Empty",
   "scatter_layered": "Scatter Layered"
