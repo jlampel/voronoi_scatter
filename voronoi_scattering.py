@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -31,7 +31,8 @@ from . import defaults
 from .defaults import data_channels, detail_channels, data_color_spaces, section_labels, node_names
 from .noise_blending import noise_blend
 from .unscatter import extract_images
-from .utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources, mode_toggle, get_groups
+from .utilities.utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources, mode_toggle, get_groups
+from .utilities.node_interface import get_io_sockets, create_socket, remove_socket, get_socket, move_socket
 
 def sort_textures(self, context, selected_nodes):
   textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
@@ -92,8 +93,8 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
 
   def add_scatter_source(idx, channel_idx=0, channel_len=0):
     scatter_source = nodes.new("ShaderNodeGroup")
-    # For some reason, using 
-    # scatter_source.node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy() 
+    # For some reason, using
+    # scatter_source.node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
     # will alter the original scatter_source_empty and future scatters will have duplicate images
     scatter_source_node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
     scatter_source.node_tree = scatter_source_node_tree
@@ -200,13 +201,14 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
     links.new(nodes['Scatter Coordinates'].outputs['Random Color'], scatter_source.inputs['Random Color'])
     links.new(nodes['Density Input'].outputs[0], scatter_source.inputs['Density'])
     links.new(nodes['Group Input'].outputs['Alpha Clip'], scatter_source.inputs['Alpha Clip'])
-    if channel not in scatter_node.node_tree.outputs:
+    if channel not in get_io_sockets(scatter_node.node_tree, 'OUTPUT'):
       if channel == 'Normal':
-        scatter_node.node_tree.outputs.new("NodeSocketVector", channel)
+        socket_type = 'NodeSocketVector'
       elif channel in data_channels:
-        scatter_node.node_tree.outputs.new("NodeSocketFloat", channel)
+        socket_type = 'NodeSocketFloat'
       else:
-        scatter_node.node_tree.outputs.new("NodeSocketColor", channel)
+        socket_type = 'NodeSocketColor'
+      create_socket(scatter_node.node_tree, 'OUTPUT', socket_type, channel)
     links.new(scatter_source.outputs[0], nodes['Group Output'].inputs[channel])
 
   scatter_sources = {}
@@ -216,7 +218,8 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
       for image_node_idx, image_node in enumerate(sorted_textures[channel]):
         scatter_source = add_scatter_source(image_node_idx, channel_idx, len(sorted_textures[channel]))
         image_nodes = setup_image_nodes(scatter_source, channel, [image_node])
-        scatter_source.node_tree.outputs[0].name = channel
+        scatter_source_outputs = get_io_sockets(scatter_source.node_tree, 'OUTPUT')
+        scatter_source_outputs[0].name = channel
         connect_scatter_source(scatter_source, channel)
         scatter_sources[channel].append(scatter_source)
     elif self.layering == 'overlapping':
@@ -230,13 +233,15 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
       scatter_source.node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
       scatter_source.node_tree.name = node_names['scatter_source']
       image_nodes = setup_image_nodes(scatter_source, channel, sorted_textures[channel])
-      scatter_source.node_tree.outputs[0].name = channel
-      scatter_node.node_tree.outputs['Image'].name = channel
+      scatter_source_outputs = get_io_sockets(scatter_source.node_tree, 'OUTPUT')
+      scatter_source_outputs[0].name = channel
+      get_socket(scatter_node.node_tree, 'OUTPUT', 'Image').name = channel
       scatter_sources[channel].append(scatter_source)
     else:
       scatter_source = add_scatter_source(channel_idx)
       image_nodes = setup_image_nodes(scatter_source, channel, sorted_textures[channel])
-      scatter_source.node_tree.outputs[0].name = channel
+      scatter_source_outputs = get_io_sockets(scatter_source.node_tree, 'OUTPUT')
+      scatter_source_outputs[0].name = channel
       connect_scatter_source(scatter_source, channel)
       scatter_sources[channel].append(scatter_source)
 
@@ -245,7 +250,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
 def blend_colors(self, scatter_node, scatter_sources):
   nodes = scatter_node.node_tree.nodes
   links = scatter_node.node_tree.links
-  inputs = scatter_node.node_tree.inputs
+  inputs = get_io_sockets(scatter_node.node_tree, 'INPUT')
   blending_inputs = ['Scale', 'Detail', 'Roughness', 'Blending']
 
   color_results = {}
@@ -272,7 +277,7 @@ def blend_colors(self, scatter_node, scatter_sources):
     return blending_results
   elif self.layering != 'overlapping':
     for input_name in blending_inputs:
-      inputs.remove(inputs["Mix Noise " + input_name])
+      remove_socket(scatter_node.node_tree, 'INPUT', "Mix Noise " + input_name)
     return color_results
   else:
     return color_results
@@ -280,7 +285,7 @@ def blend_colors(self, scatter_node, scatter_sources):
 def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_outputs):
   nodes = scatter_node.node_tree.nodes
   links = scatter_node.node_tree.links
-  inputs = scatter_node.node_tree.inputs
+  inputs = get_io_sockets(scatter_node.node_tree, 'INPUT')
   color_results = {}
 
   def create_randomize_node(prev_node, scatter_source, channel):
@@ -308,17 +313,17 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
       channels = prev_outputs.keys()
       for value_channel in data_channels:
         if value_channel not in channels:
-          inputs.remove(inputs['Random Cell '+ value_channel])
+          remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell '+ value_channel)
       if 'Albedo' not in channels and 'Image' not in channels and 'Emission' not in channels:
-        inputs.remove(inputs['Random Cell Hue'])
-        inputs.remove(inputs['Random Cell Saturation'])
-        inputs.remove(inputs['Random Cell Value'])
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Hue')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Saturation')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Value')
     else:
       for value_channel in data_channels:
-        inputs.remove(inputs['Random Cell '+ value_channel])
-      inputs.remove(inputs['Random Cell Hue'])
-      inputs.remove(inputs['Random Cell Saturation'])
-      inputs.remove(inputs['Random Cell Value'])
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell '+ value_channel)
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Hue')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Saturation')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Value')
 
   if self.use_random_col and self.layering != 'overlapping':
     channels = [*prev_outputs]
@@ -343,9 +348,9 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
     nodes.remove(nodes['Randomize Cell HSV'])
     nodes.remove(nodes['Group Input Random Col'])
     color_results['Image'].append(nodes['Color Result'].outputs[0])
-    inputs.remove(inputs['Random Cell Hue'])
-    inputs.remove(inputs['Random Cell Saturation'])
-    inputs.remove(inputs['Random Cell Value'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Hue')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Saturation')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Value')
 
   elif not self.use_random_col:
     for channel in prev_outputs:
@@ -359,7 +364,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
 def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_outputs):
   nodes = scatter_node.node_tree.nodes
   links = scatter_node.node_tree.links
-  inputs = scatter_node.node_tree.inputs
+  inputs = get_io_sockets(scatter_node.node_tree, 'INPUT')
   group_inputs = nodes['Group Input'].outputs
   color_results = {}
 
@@ -393,31 +398,31 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
       channels = scatter_sources.keys()
       for value_channel in data_channels:
         if value_channel not in channels and value_channel != 'Displacement':
-          inputs.remove(inputs[value_channel + " Noise"])
-          inputs.remove(inputs[value_channel + " Noise Scale"])
-          inputs.remove(inputs[value_channel + " Noise Detail"])
-          inputs.remove(inputs[value_channel + " Noise Warp"])
+          remove_socket(scatter_node.node_tree, 'INPUT', value_channel + " Noise")
+          remove_socket(scatter_node.node_tree, 'INPUT', value_channel + " Noise Scale")
+          remove_socket(scatter_node.node_tree, 'INPUT', value_channel + " Noise Detail")
+          remove_socket(scatter_node.node_tree, 'INPUT', value_channel + " Noise Warp")
       if 'Albedo' not in channels and 'Image' not in channels and 'Emission' not in channels:
-        inputs.remove(inputs['Hue Noise'])
-        inputs.remove(inputs['Saturation Noise'])
-        inputs.remove(inputs['Value Noise'])
-        inputs.remove(inputs['Color Noise Scale'])
-        inputs.remove(inputs['Color Noise Detail'])
-        inputs.remove(inputs['Color Noise Warp'])
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Hue Noise')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Saturation Noise')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Value Noise')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Color Noise Scale')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Color Noise Detail')
+        remove_socket(scatter_node.node_tree, 'INPUT', 'Color Noise Warp')
     else:
       if self.layering != 'overlapping':
         channels = ['Alpha', 'AO', 'Bump', 'Glossiness', 'Metallic', 'Roughness', 'Specular']
         for channel in channels:
-            inputs.remove(inputs[channel + ' Noise'])
-            inputs.remove(inputs[channel + ' Noise Scale'])
-            inputs.remove(inputs[channel + ' Noise Detail'])
-            inputs.remove(inputs[channel + ' Noise Warp'])
-      inputs.remove(inputs['Hue Noise'])
-      inputs.remove(inputs['Saturation Noise'])
-      inputs.remove(inputs['Value Noise'])
-      inputs.remove(inputs['Color Noise Scale'])
-      inputs.remove(inputs['Color Noise Detail'])
-      inputs.remove(inputs['Color Noise Warp'])
+            remove_socket(scatter_node.node_tree, 'INPUT', channel + " Noise")
+            remove_socket(scatter_node.node_tree, 'INPUT', channel + " Noise Scale")
+            remove_socket(scatter_node.node_tree, 'INPUT', channel + " Noise Detail")
+            remove_socket(scatter_node.node_tree, 'INPUT', channel + " Noise Warp")
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Hue Noise')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Saturation Noise')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Value Noise')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Color Noise Scale')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Color Noise Detail')
+      remove_socket(scatter_node.node_tree, 'INPUT', 'Color Noise Warp')
 
   if self.use_noise_col and self.layering != 'overlapping':
     channels = [*prev_outputs]
@@ -519,22 +524,31 @@ def manage_alpha(self, scatter_node, scatter_sources, color_results, transparenc
     else:
       new_input_name = channel
     if new_input_name not in scatter_node.inputs:
-      scatter_node.node_tree.inputs.new('NodeSocketColor', new_input_name)
+      create_socket(scatter_node.node_tree, 'INPUT', 'NodeSocketColor', new_input_name)
     links.new(nodes['Group Input'].outputs[new_input_name], alpha_over_node.inputs[6])
     if channel in ['Bump', 'Roughness', 'Glossiness', 'Specular', 'Albedo']:
-      scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5, 1]
+      if bpy.app.version < (4, 0, 0):
+        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5, 1]
+      else:
+        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5]
     elif channel == 'AO':
-      scatter_node.inputs[new_input_name].default_value = [1, 1, 1, 1]
+      if bpy.app.version < (4, 0, 0):
+        scatter_node.inputs[new_input_name].default_value = [1, 1, 1, 1]
+      else:
+        scatter_node.inputs[new_input_name].default_value = [1, 1, 1]
     elif channel == 'Normal':
-      scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 1, 1]
+      if bpy.app.version < (4, 0, 0):
+        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 1, 1]
+      else:
+        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 1]
 
   if transparency and self.layering != 'overlapping':
     for channel_idx, channel in enumerate(color_results.keys()):
       for output_idx, output in enumerate(color_results[channel]):
         mix_background(channel, output)
   elif not transparency:
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Density'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Alpha Clip'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Density')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Alpha Clip')
     nodes.remove(nodes['Density Input'])
     for channel in scatter_sources:
       for scatter_source in scatter_sources[channel]:
@@ -553,15 +567,15 @@ def cleanup_layering(self, scatter_node, scatter_sources):
     scatter_source = scatter_sources[[*scatter_sources][0]][0]
     links.new(scatter_source.outputs[1], nodes['Group Output'].inputs['Random Color'])
     if self.use_pbr and 'Image' not in scatter_sources.keys():
-      scatter_node.node_tree.outputs.remove(scatter_node.node_tree.outputs['Image'])
-      outputs = scatter_node.node_tree.outputs
+      remove_socket(scatter_node.node_tree, 'OUTPUT', 'Image')
+      outputs = get_io_sockets(scatter_node.node_tree, 'OUTPUT')
       output_count = len(outputs)
-      outputs.move(0, output_count - 1)
+      move_socket(scatter_node.node_tree, 'OUTPUT', outputs[0], output_count - 1)
 
   if (self.layering == 'simple' or self.layering == 'simple_alpha' or self.layering == 'layered') and self.use_pbr:
-    outputs = scatter_node.node_tree.outputs
+    outputs = get_io_sockets(scatter_node.node_tree, 'OUTPUT')
     output_count = len(outputs)
-    outputs.move(1, output_count - 1)
+    move_socket(scatter_node.node_tree, 'OUTPUT', outputs[1], output_count - 1)
 
   if self.layering != 'layered' and self.layering != 'overlapping':
     remove_section(nodes, 'Randomize Layers')
@@ -581,17 +595,17 @@ def cleanup_options(self, scatter_node, scatter_coordinates):
   if self.projection_method == 'uv':
     bpy.data.node_groups.remove(nodes['Tri-Planar Mapping'].node_tree)
     nodes.remove(nodes['Tri-Planar Mapping'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Tri-Planar Blending'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Tri-Planar Blending')
     links.new(nodes['Centered UVs'].outputs[0], nodes['Pattern Scale'].inputs[0])
   else:
     nodes.remove(nodes['Centered UVs'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['UV Map'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'UV Map')
 
   if not self.use_edge_blur:
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Cell Blending'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Cell Blending')
     nodes.remove(nodes['White Noise Texture'])
-    scatter_coordinates.inputs.remove(scatter_coordinates.inputs['Edge Blur'])
-    scatter_coordinates.inputs.remove(scatter_coordinates.inputs['Edge Blur Noise'])
+    remove_socket(scatter_coordinates, 'INPUT', 'Edge Blur')
+    remove_socket(scatter_coordinates, 'INPUT', 'Edge Blur Noise')
     scatter_coordinates.nodes.remove(scatter_coordinates.nodes['Blur Range'])
     scatter_coordinates.nodes.remove(scatter_coordinates.nodes['Edge Blur'])
     if self.use_edge_warp:
@@ -600,12 +614,12 @@ def cleanup_options(self, scatter_node, scatter_coordinates):
       scatter_coordinates.links.new(scatter_coordinates.nodes['Shift Cells'].outputs[0], scatter_coordinates.nodes['Voronoi Texture'].inputs[0])
 
   if not self.use_edge_warp:
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp Scale'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp Detail'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Edge Warp')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Edge Warp Scale')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Edge Warp Detail')
     nodes.remove(nodes['Noise Texture'])
-    scatter_coordinates.inputs.remove(scatter_coordinates.inputs['Edge Warp'])
-    scatter_coordinates.inputs.remove(scatter_coordinates.inputs['Edge Warp Noise'])
+    remove_socket(scatter_coordinates, 'INPUT', 'Edge Warp')
+    remove_socket(scatter_coordinates, 'INPUT', 'Edge Warp Noise')
     scatter_coordinates.nodes.remove(scatter_coordinates.nodes['Edge Warp'])
     if self.use_edge_blur:
       scatter_coordinates.links.new(scatter_coordinates.nodes['Edge Blur'].outputs[2], scatter_coordinates.nodes['Voronoi Texture'].inputs[0])
@@ -615,37 +629,38 @@ def cleanup_options(self, scatter_node, scatter_coordinates):
   if not self.use_texture_warp:
     remove_section(nodes, 'Texture Warp')
     links.new(nodes['Scaled Coordinates'].outputs[0], nodes['Warped Coordinates'].inputs[0])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp Scale'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Texture Warp')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Texture Warp Scale')
 
 def cleanup_sockets(self, scatter_node, transparency):
   inputs = scatter_node.inputs
-  node_tree_inputs = scatter_node.node_tree.inputs
+  node_tree_inputs = get_io_sockets(scatter_node.node_tree, 'INPUT')
 
-  new_inputs = []
-  input_count = len(inputs)
-  for label in section_labels:
-    count = 0
-    for input in inputs:
-      count += 1
-      if label == input.name:
-        new_input = node_tree_inputs.new('NodeSocketVirtual', label)
-        inputs[input_count + len(new_inputs)].display_shape = 'DIAMOND_DOT'
-        new_inputs.append([new_input, count])
-        break
-  for input_idx in range(len(new_inputs)):
-    node_tree_inputs.move(input_count + input_idx, new_inputs[input_idx][1] + input_idx)
-  for label in section_labels:
-    for input in node_tree_inputs:
-      if input.name == label:
-        node_tree_inputs.remove(input)
-        break
+#   if bpy.app.version < (4, 0, 0):
+#     new_inputs = []
+#     input_count = len(inputs)
+#     for label in section_labels:
+#       count = 0
+#       for input in inputs:
+#         count += 1
+#         if label == input.name:
+#           new_input = node_tree_inputs.new('NodeSocketVirtual', label)
+#           inputs[input_count + len(new_inputs)].display_shape = 'DIAMOND_DOT'
+#           new_inputs.append([new_input, count])
+#           break
+#     for input_idx in range(len(new_inputs)):
+#       move_socket(scatter_node.node_tree, 'INPUT', new_inputs[input_idx], new_inputs[input_idx][1] + input_idx)
+#     for label in section_labels:
+#       for input in node_tree_inputs:
+#         if input.name == label:
+#           node_tree_inputs.remove(input)
+#           break
 
   if not transparency:
-    node_tree_inputs.remove(node_tree_inputs['Transparency'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Transparency')
 
   if 'Normal' not in [x.name for x in scatter_node.outputs] and 'Normal Strength' in [x.name for x in node_tree_inputs]:
-    node_tree_inputs.remove(node_tree_inputs['Normal Strength'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Normal Strength')
 
 def cleanup_groups():
   groups = bpy.data.node_groups
@@ -666,7 +681,7 @@ def connect_shader(self, selected_nodes, scatter_node, transparency):
         input_color = [input_value, input_value, input_value, 1]
       if output.name == 'Image':
         scatter_node.inputs['Background'].default_value = input_color
-      else: 
+      else:
         scatter_node.inputs[output.name].default_value = input_color
 
   for node in selected_nodes:
@@ -769,7 +784,7 @@ def create_coordinates_node(self, context, selected_nodes):
   scatter_node_links = scatter_node.node_tree.links
 
   if not self.use_edge_blur:
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Cell Blending'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Cell Blending')
     scatter_node_nodes.remove(scatter_node_nodes['White Noise Texture'])
     scatter_node_nodes.remove(scatter_node_nodes['Blur Range'])
     scatter_node_nodes.remove(scatter_node_nodes['Edge Blur'])
@@ -778,9 +793,9 @@ def create_coordinates_node(self, context, selected_nodes):
     else:
       scatter_node_links.new(scatter_node_nodes['Randomize Scatter'].outputs[0], scatter_node_nodes['Voronoi Texture'].inputs[0])
   if not self.use_edge_warp:
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp Scale'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Edge Warp Detail'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Edge Warp')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Edge Warp Scale')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Edge Warp Detail')
     scatter_node_nodes.remove(scatter_node_nodes['Noise Texture'])
     scatter_node_nodes.remove(scatter_node_nodes['Edge Warp'])
     if self.use_edge_blur:
@@ -790,8 +805,8 @@ def create_coordinates_node(self, context, selected_nodes):
   if not self.use_texture_warp:
     remove_section(scatter_node_nodes, 'Texture Warp')
     scatter_node_links.new(scatter_node_nodes['Scaled Coordinates'].outputs[0], scatter_node_nodes['Warped Coordinates'].inputs[0])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp'])
-    scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['Texture Warp Scale'])
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Texture Warp')
+    remove_socket(scatter_node.node_tree, 'INPUT', 'Texture Warp Scale')
 
   return scatter_node
 

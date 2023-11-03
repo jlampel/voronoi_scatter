@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -22,7 +22,8 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 '''
 
 import bpy, mathutils
-from .utilities import get_scatter_sources, has_scatter_uvs, mode_toggle, save_image
+from .utilities.node_interface import create_socket, get_io_sockets, get_socket, move_socket
+from .utilities.utilities import get_scatter_sources, has_scatter_uvs, mode_toggle, save_image
 from .defaults import texture_names, data_channels, detail_channels, data_color_spaces, file_types
 from .clear_bake import clear_bake
 from .unwrap import unwrap
@@ -175,8 +176,9 @@ def bake_scatter(self, context, objects):
             output_type = 'NodeSocketFloat'
           else:
             output_type = 'NodeSocketColor'
-          scatter_node.node_tree.outputs.new(output_type, texture_node_name)
-          scatter_node.node_tree.outputs.move(len(scatter_node.node_tree.outputs) -1, len(scatter_node.node_tree.outputs) -2)
+          new_socket = create_socket(scatter_node.node_tree, 'OUTPUT', output_type, texture_node_name)
+          output_count = len(get_io_sockets(scatter_node.node_tree, 'OUTPUT'))
+          move_socket(scatter_node.node_tree, 'OUTPUT', new_socket, output_count -2)
         group_links.new(texture.outputs[0], group_nodes["Group Output"].inputs[texture_node_name])
 
         # Rewires socket connections
@@ -185,17 +187,15 @@ def bake_scatter(self, context, objects):
           links.new(scatter_node.outputs[texture_node_name], socket)
 
     # Moves Displacement to the bottom
+    displacement_socket = get_socket(scatter_node.node_tree, 'OUTPUT', 'Baked Displacement')
     output_count = len(scatter_node.outputs)
-    for output_idx, output in enumerate(scatter_node.node_tree.outputs):
-      if output.name == 'Baked Displacement':
-        scatter_node.node_tree.outputs.move(output_idx, len(scatter_node.node_tree.outputs) - 2)
-        break
+    move_socket(scatter_node.node_tree, 'OUTPUT', displacement_socket, output_count -2)
 
     # Sets up nodes for UVs
     # TODO: Make sure the right UVs are always used
     # TODO: Make sure object has UVs!
     if 'UV Map' not in [x.name for x in scatter_node.inputs]:
-      uv_input = scatter_node.node_tree.inputs.new('NodeSocketVector', 'UV Map')
+      uv_input = create_socket(scatter_node.node_tree, 'INPUT', 'NodeSocketVector', 'UV Map')
       uv_input.hide_value = True
     group_input = scatter_node.node_tree.nodes['Group Input']
     mixed_uvs = scatter_node.node_tree.nodes['UVs']
@@ -223,9 +223,9 @@ def bake_vectors(self, context, objects):
   for scatter_node in scatter_nodes:
     coordinates_nodes = [x for x in scatter_node.node_tree.nodes if x.label == 'Scatter Coordinates']
     for coordinates in coordinates_nodes:
-      # Creates a new image 
+      # Creates a new image
       pass
-    
+
       # Bakes the vectors to the image
 
       # Rewires the sockets

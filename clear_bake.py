@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +24,8 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 from copy import copy
 import bpy
-from .utilities import get_scatter_sources, get_baked_sources, mode_toggle
+from .utilities.node_interface import remove_socket
+from .utilities.utilities import get_scatter_sources, get_baked_sources, mode_toggle
 from .defaults import texture_names
 
 def clear_bake(context):
@@ -44,10 +45,10 @@ def clear_bake(context):
           to_sockets = [x.to_socket for x in scatter_node.outputs[baked_output_name].links]
           for socket in to_sockets:
             links.new(output, socket)
-          scatter_node.node_tree.outputs.remove(scatter_node.node_tree.outputs[baked_output_name])
+          remove_socket(scatter_node.node_tree, 'OUTPUT', baked_output_name)
     # Remove UV input if using tri-planar
     if 'Centered UVs' not in [x.name for x in scatter_node.node_tree.nodes]:
-      scatter_node.node_tree.inputs.remove(scatter_node.node_tree.inputs['UV Map'])
+      remove_socket(scatter_node.node_tree, 'INPUT', 'UV Map')
     scatter_node.node_tree.nodes['UV Map'].uv_map = ''
     # unhide inputs and outputs
     for input in scatter_node.inputs:

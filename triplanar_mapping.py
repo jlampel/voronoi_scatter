@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 from bpy.types import (Operator)
-from .utilities import append_node, average_location, mode_toggle
+from .utilities.utilities import append_node, average_location, mode_toggle
 from .defaults import node_names
 
 def check_vector_input(selected_nodes):

@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,7 +25,9 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 import bpy
 from bpy.types import (Operator)
 from pprint import pprint
-from .utilities import mode_toggle
+
+from .utilities.node_interface import create_socket, set_socket_subtype
+from .utilities.utilities import mode_toggle
 from . import defaults
 
 
@@ -62,7 +64,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
                             mix_sockets[output.name] = []
                         mix_sockets[output.name].append(output)
             return mix_sockets
-                    
+
         elif mix_by == "order":
             mix_sockets = {}
             for texture_idx, texture in enumerate(textures):
@@ -89,22 +91,21 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         blending_node = nodes.new("ShaderNodeGroup")
         blending_node.node_tree = bpy.data.node_groups.new("Noise Blend", "ShaderNodeTree")
         blending_node.location = [
-            max([tex.location[0] for tex in textures]) + max([tex.width for tex in textures]) + 250, 
+            max([tex.location[0] for tex in textures]) + max([tex.width for tex in textures]) + 250,
             sum([x.location[1] for x in textures]) / len(textures)
         ]
         blending_node.width = 200
         blending_nodes = blending_node.node_tree.nodes
         blending_links = blending_node.node_tree.links
-        blending_inputs = blending_node.node_tree.inputs
         # Add noise and initial nodes
         group_input = blending_nodes.new("NodeGroupInput")
         group_input.location = [-1000, 0]
         white_noise = blending_nodes.new("ShaderNodeTexWhiteNoise")
         white_noise.location = [-800, 0]
         white_noise.noise_dimensions = '2D'
-        vector_socket = blending_node.node_tree.inputs.new("NodeSocketVector", "Vector")
+        vector_socket = create_socket(blending_node.node_tree, 'INPUT', "NodeSocketVector", "Vector")
         blending_links.new(group_input.outputs['Vector'], white_noise.inputs[0])
-        blending_inputs["Vector"].hide_value = True
+        vector_socket.hide_value = True
         vector_mix = blending_nodes.new("ShaderNodeMixRGB")
         vector_mix.location = [-600, 0]
         vector_mix.blend_type = 'LINEAR_LIGHT'
@@ -122,18 +123,20 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         noise.inputs['Roughness'].default_value = 0.75
         noise.inputs['Detail'].default_value = 5
         blending_links.new(vector_mix.outputs["Color"], noise.inputs["Vector"])
-        scale_socket = blending_node.node_tree.inputs.new("NodeSocketFloat", "Noise Scale")
+        scale_socket = create_socket(blending_node.node_tree, 'INPUT', "NodeSocketFloat", "Noise Scale")
         blending_node.inputs['Noise Scale'].default_value = 5
         blending_links.new(group_input.outputs["Noise Scale"], noise.inputs["Scale"])
-        detail_socket = blending_node.node_tree.inputs.new("NodeSocketFloat", "Noise Detail")
+        detail_socket = create_socket(blending_node.node_tree, 'INPUT', "NodeSocketFloat", "Noise Detail")
         blending_node.inputs['Noise Detail'].default_value = 2
         blending_links.new(group_input.outputs["Noise Detail"], noise.inputs["Detail"])
-        roughness_socket = blending_node.node_tree.inputs.new("NodeSocketFloatFactor", "Noise Roughness")
+        roughness_socket = create_socket(blending_node.node_tree, 'INPUT', "NodeSocketFloat", "Noise Roughness")
+        set_socket_subtype(roughness_socket, 'FACTOR')
         roughness_socket.min_value = 0
         roughness_socket.max_value = 1
         blending_node.inputs['Noise Roughness'].default_value = 0.5
         blending_links.new(group_input.outputs["Noise Roughness"], noise.inputs["Roughness"])
-        blur_socket = blending_node.node_tree.inputs.new("NodeSocketFloatFactor", "Noise Blending")
+        blur_socket = create_socket(blending_node.node_tree, 'INPUT', "NodeSocketFloat", "Noise Blending")
+        set_socket_subtype(blur_socket, 'FACTOR')
         blur_socket.min_value = 0
         blur_socket.max_value = 1
         blending_links.new(group_input.outputs["Noise Blending"], blur_range.inputs[0])
@@ -144,7 +147,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
         group_output = blending_nodes.new("NodeGroupOutput")
         group_output.location = [1000, 0]
         return blending_node
-        
+
     def create_inputs(blending_node, sockets):
         mix_inputs = {}
         max_sockets = max([len(sockets[x]) for x in sockets.keys()])
@@ -152,10 +155,10 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
             mix_inputs[channel] = []
         for socket_idx in range(max_sockets):
             for channel in sockets.keys():
-                new_input = blending_node.node_tree.inputs.new("NodeSocketColor", channel + str(socket_idx + 1))
+                new_input = create_socket(blending_node.node_tree, 'INPUT', "NodeSocketColor", channel + str(socket_idx + 1))
                 mix_inputs[channel].append(new_input)
         return mix_inputs
-    
+
     def link_inputs(textures, blending_node, sockets, mix_inputs):
         for channel_name in sockets:
             for idx, from_socket in enumerate(sockets[channel_name]):
@@ -164,7 +167,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
 
     def create_outputs(blending_node, sockets):
         for channel in sockets.keys():
-            node_output = blending_node.node_tree.outputs.new("NodeSocketColor", channel)
+            node_output = create_socket(blending_node.node_tree, 'OUTPUT', 'NodeSocketColor', channel)
 
     def mix_colors(blending_node, mix_inputs, sockets):
         blending_nodes = blending_node.node_tree.nodes
@@ -174,7 +177,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
             channel = mix_inputs[channel_name]
             mix_nodes = []
             number_of_sockets = len(sockets[channel_name])
-            if number_of_sockets == 1: 
+            if number_of_sockets == 1:
                 self.report({"WARNING"}, "Skipping noise blending for %s - more than one texture is needed per PBR channel" % channel_name)
                 blending_links.new(blending_nodes['Group Input'].outputs[channel[0].name], blending_nodes['Group Output'].inputs[channel_name])
             else:
@@ -221,7 +224,7 @@ def noise_blend(self, nodes_to_mix, sockets_to_mix, mix_by):
 
     textures = order_nodes()
     sockets = get_sockets()
-    if sockets: 
+    if sockets:
         blending_node = create_group()
         mix_inputs = create_inputs(blending_node, sockets)
         link_inputs(textures, blending_node, sockets, mix_inputs)
@@ -270,7 +273,7 @@ class NODE_OT_noise_blend(Operator):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        # switching modes prevents context errors 
+        # switching modes prevents context errors
         prev_mode = mode_toggle(context, 'OBJECT')
         noise_blend(self, context.selected_nodes, None, self.mix_by)
         mode_toggle(context, prev_mode)
@@ -278,6 +281,6 @@ class NODE_OT_noise_blend(Operator):
 
 def register():
     bpy.utils.register_class(NODE_OT_noise_blend)
-    
+
 def unregister():
     bpy.utils.unregister_class(NODE_OT_noise_blend)

@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 from copy import copy
-from .utilities import save_image
+from .utilities.utilities import save_image
 
 def denoise_image(context, image, format_settings):
   # Get current state

@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -26,10 +26,14 @@ import os
 import re
 import bpy
 from copy import copy
-from .defaults import texture_names, default_view_transforms, node_names
+from ..defaults import texture_names, default_view_transforms, node_names, package_name
 
 def append_node(self, nodes, node_tree_name):
-  path = bpy.path.native_pathsep(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets\scatter_nodes.blend\\NodeTree\\'))
+  if bpy.app.version < (4, 0, 0):
+    node_file = 'scatter_nodes'
+  else:
+    node_file = 'scatter_nodes_4-0'
+  path = bpy.path.native_pathsep(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', f'assets\{node_file}.blend\\NodeTree\\'))
 
   node_group = nodes.new("ShaderNodeGroup")
   initial_nodetrees = set(bpy.data.node_groups)
@@ -38,6 +42,7 @@ def append_node(self, nodes, node_tree_name):
     bpy.ops.wm.append(filename=node_tree_name, directory=path)
   except:
     self.report({'ERROR'}, 'Scattershot nodes not detected. Please download from the Blender Market and install again.')
+    self.report({'ERROR'}, f'{node_tree_name} could not be appended from {path}')
     nodes.remove(node_group)
 
   appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
@@ -54,7 +59,7 @@ def average_location(selected_nodes):
 
 
 def create_friendly_name(context, texture_name):
-  preferences = context.preferences.addons[__package__].preferences
+  preferences = context.preferences.addons[package_name].preferences
   name = texture_name
   for file_type in name_string_to_array(preferences.file_types):
     extension = '.' + file_type.lower()
@@ -89,7 +94,6 @@ def create_friendly_name(context, texture_name):
     return name_array[-1]
   else:
     return 'Image'
-
 
 def get_scatter_sources(selected_nodes):
   scatter_sources = []

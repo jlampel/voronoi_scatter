@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@ from bpy.types import (Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 from pprint import pprint
 from . import defaults
-from .utilities import get_scatter_sources, get_groups
+from .utilities.utilities import get_scatter_sources, get_groups
 
 def extract_images(self, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
@@ -52,7 +52,7 @@ def extract_images(self, selected_nodes):
             new_image.extension = self.extension
             if (image_idx + 1) % 4 == 0: columns += 1
         return new_textures
-            
+
 def remove_scatter_nodes(selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
     trees_to_delete = []

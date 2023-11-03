@@ -3,9 +3,9 @@ Copyright (C) 2020-2023 Orange Turbine
 https://orangeturbine.com
 orangeturbine@cgcookie.com
 
-This file is part of Scattershot, created by Jonathan Lampel. 
+This file is part of Scattershot, created by Jonathan Lampel.
 
-All code distributed with this add-on is open source as described below. 
+All code distributed with this add-on is open source as described below.
 
 Scattershot is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 import bpy
 from bpy.types import (Operator)
-from .utilities import append_node, mode_toggle, is_shader
+from .utilities.utilities import append_node, mode_toggle, is_shader
 from .defaults import node_names
 
 def connect_vector(links, nodes, from_node, to_node):
@@ -48,7 +48,7 @@ def create_randomize_node(self, context):
                 to_socket = node.inputs['Base Color']
             elif hasattr(node.inputs, 'Color'):
                 to_socket = node.inputs['Color']
-            else: 
+            else:
                 to_socket = node.inputs[0]
             if to_socket.links:
                 links.new(to_socket.links[0].from_socket, randomize_node.inputs[0])
