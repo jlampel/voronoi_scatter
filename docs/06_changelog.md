@@ -7,6 +7,9 @@ search_exclude: false
 
 # Changelog
 
+## v1.10.1
+- Added support for Blender 4.0
+
 ## v1.9
 - Fixed issue with noise blending due to API change in Blender 3.5
 - Added ability to add textures while re-scattering
