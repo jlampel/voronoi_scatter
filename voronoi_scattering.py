@@ -163,6 +163,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         alpha_mix.location = [(image_node_idx * 250) + 350, (-image_node_idx * 250) + 200]
         alpha_mix.hide = True
         alpha_mix_nodes.append(alpha_mix)
+
     # connect nodes in scatter source
     for image_node_idx, image_node in enumerate(new_image_nodes):
       scatter_source_nodes["Number of Images"].outputs[0].default_value = image_node_idx + 1
@@ -201,7 +202,7 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
     links.new(nodes['Scatter Coordinates'].outputs['Random Color'], scatter_source.inputs['Random Color'])
     links.new(nodes['Density Input'].outputs[0], scatter_source.inputs['Density'])
     links.new(nodes['Group Input'].outputs['Alpha Clip'], scatter_source.inputs['Alpha Clip'])
-    if channel not in get_io_sockets(scatter_node.node_tree, 'OUTPUT'):
+    if channel not in [x.name for x in get_io_sockets(scatter_node.node_tree, 'OUTPUT')]:
       if channel == 'Normal':
         socket_type = 'NodeSocketVector'
       elif channel in data_channels:
