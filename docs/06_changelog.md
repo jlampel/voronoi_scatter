@@ -8,6 +8,9 @@ search_exclude: false
 # Changelog
 
 ## v1.10.1
+- Fixed issue with extra output sockets when noise blending in Blender 4.0
+
+## v1.10
 - Added support for Blender 4.0
 
 ## v1.9
