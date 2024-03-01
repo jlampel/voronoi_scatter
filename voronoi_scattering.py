@@ -35,7 +35,7 @@ from .utilities.utilities import append_node, create_friendly_name, average_loca
 from .utilities.node_interface import get_io_sockets, create_socket, remove_socket, get_socket, move_socket
 
 def sort_textures(self, context, selected_nodes):
-  textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
+  textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE' and x.image]
   sorted_textures = {
     'Image': [],
     'Albedo': [],
