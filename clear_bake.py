@@ -66,7 +66,7 @@ class NODE_OT_clear_baked_scatter(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    return get_baked_sources(context.selected_nodes)
+    return context.area.ui_type == 'ShaderNodeTree' and get_baked_sources(context.selected_nodes)
 
   def execute(self, context):
     # switching modes prevents context errors

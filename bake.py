@@ -446,7 +446,7 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    return get_scatter_sources(context.selected_nodes)
+    return context.area.ui_type == 'ShaderNodeTree' and get_scatter_sources(context.selected_nodes)
 
   def invoke(self, context, event):
       return context.window_manager.invoke_props_dialog(self)

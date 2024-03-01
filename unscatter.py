@@ -111,7 +111,7 @@ class NODE_OT_unscatter(Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.selected_nodes:
+        if context.area.ui_type == 'ShaderNodeTree' and context.selected_nodes:
             return get_scatter_sources(context.selected_nodes)
         else:
             return False

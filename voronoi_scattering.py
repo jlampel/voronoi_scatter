@@ -1094,7 +1094,7 @@ class NODE_OT_scatter(Operator):
 
   @classmethod
   def poll(cls, context):
-    if context.selected_nodes:
+    if context.area.ui_type == 'ShaderNodeTree' and context.selected_nodes:
       nodes = context.selected_nodes[0].id_data.nodes
       return(
         [x for x in nodes if (x.select and x.type == 'TEX_IMAGE' and x.image)]

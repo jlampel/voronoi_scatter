@@ -71,7 +71,7 @@ class NODE_OT_randomize_col(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.selected_nodes
+        return context.area.ui_type == 'ShaderNodeTree' and context.selected_nodes
 
     def execute(self, context):
         # switching modes prevents context errors

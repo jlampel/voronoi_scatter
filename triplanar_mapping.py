@@ -65,7 +65,7 @@ class NODE_OT_triplanar_mapping(Operator):
 
     @classmethod
     def poll(cls, context):
-        return check_vector_input(context.selected_nodes)
+        return context.area.ui_type == 'ShaderNodeTree' and check_vector_input(context.selected_nodes)
 
     def execute(self, context):
         # switching modes prevents context errors

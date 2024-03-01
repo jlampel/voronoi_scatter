@@ -259,7 +259,7 @@ class NODE_OT_noise_blend(Operator):
 
     @classmethod
     def poll(cls, context):
-        if len(context.selected_nodes) > 1:
+        if context.area.ui_type == 'ShaderNodeTree' and len(context.selected_nodes) > 1:
             return True
         else:
             return False
