@@ -9,6 +9,8 @@ search_exclude: false
 
 ## v1.10.1
 - Fixed issue with extra output sockets when noise blending in Blender 4.0
+- Fixed poll error in search outside of shader editor
+- Fixed error when one selected image node has no image
 
 ## v1.10
 - Added support for Blender 4.0
