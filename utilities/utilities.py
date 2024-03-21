@@ -26,7 +26,7 @@ import os
 import re
 import bpy
 from copy import copy
-from ..defaults import texture_names, default_view_transforms, node_names, package_name
+from ..defaults import texture_names, default_view_transforms, node_tree_names, prev_node_tree_names, package_name
 
 def append_node(self, nodes, node_tree_name):
   if bpy.app.version < (4, 0, 0):
@@ -47,6 +47,7 @@ def append_node(self, nodes, node_tree_name):
 
   appended_nodetrees = set(bpy.data.node_groups) - initial_nodetrees
   appended_node = [x for x in appended_nodetrees if node_tree_name in x.name][0]
+
   node_group.node_tree = bpy.data.node_groups[appended_node.name]
   node_group.node_tree.name = node_tree_name
   return node_group
@@ -67,7 +68,7 @@ def create_friendly_name(context, texture_name):
       name = name.replace(extension, '')
   name_array = []
   # Preferences can only be accessed by dot notation, so iterating through each channel with bracket notation does not work
-  for word in re.split('[^a-z]', name.lower()):
+  for word in re.split('[^a-zA-Z0-9]', name.lower()):
     if word in name_string_to_array(preferences.albedo_names):
       name_array.append('Albedo')
     elif word in name_string_to_array(preferences.ao_names):
@@ -102,13 +103,16 @@ def get_scatter_sources(selected_nodes):
     selected_group_nodes = [x for x in nodes if x.select and x.type == 'GROUP']
     for group_node in selected_group_nodes:
       for node in group_node.node_tree.nodes:
-        if node.type == 'GROUP':
-          if node_names['scatter_source'] in node.node_tree.name:
+        if node.type == 'GROUP' and node.node_tree:
+          name = node.node_tree.name
+          if node_tree_names['scatter_source'] in name or prev_node_tree_names['scatter_source'] in name:
             scatter_sources.append(node)
-          elif node_names['scatter'] in node.node_tree.name:
+          elif 'Scatter' in node.node_tree.name:
             for inner_node in node.node_tree.nodes:
-              if inner_node.type == 'GROUP' and node_names['scatter_source'] in inner_node.node_tree.name:
-                scatter_sources.append(inner_node)
+              if inner_node.type == 'GROUP' and inner_node.node_tree:
+                inner_name = inner_node.node_tree.name
+                if node_tree_names['scatter_source'] in inner_name or prev_node_tree_names['scatter_source'] in inner_name:
+                  scatter_sources.append(inner_node)
   return scatter_sources
 
 

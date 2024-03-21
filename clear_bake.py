@@ -39,7 +39,7 @@ def clear_bake(context):
         scatter_node.node_tree.nodes.remove(node)
     # Remove baked sockets
     for output in scatter_node.outputs:
-      if output.name in texture_names.keys():
+      if output.name in texture_names.keys() or output.name == 'Image':
         baked_output_name = f"Baked {output.name}"
         if baked_output_name in scatter_node.outputs:
           to_sockets = [x.to_socket for x in scatter_node.outputs[baked_output_name].links]

@@ -134,20 +134,25 @@ layering = {
 }
 
 # Node names
-node_names = {
-  "tri-planar": "Tri-Planar Mapping",
-  "uv_normal_map": "UV Normal Map",
-  "tri-planar_normal_map": "Tri-Planar Normal Map",
+node_tree_names = {
+  "tri-planar": ".tri-planar_mapping",
+  "uv_normal_map": ".uv_normal_map",
+  "tri-planar_normal_map": ".tri-planar_normal_map",
   "scatter_vectors": "Scatter Vectors",
-  "vector_default": "Vector Default",
-  "scatter": "Scattershot",
+  "vector_default": ".vector_default",
+  "scatter": "Scatter Images",
   "scatter_overlapping": "Scatter Overlapping",
-  "randomize_cell_hsv": "Randomize Cell HSV",
-  "randomize_noise_hsv": "Noise Randomize HSV",
-  "randomize_cell_value": "Randomize Cell Value",
-  "randomize_noise_value": "Noise Randomize Value",
-  "scatter_coordinates": "Scatter Voronoi Coordinates",
+  "randomize_cell_hsv": ".randomize_cell_hsv",
+  "randomize_noise_hsv": ".noise_randomize_hsv",
+  "randomize_cell_value": ".randomize_cell_value",
+  "randomize_noise_value": ".noise_randomize_value",
+  "scatter_coordinates": ".scatter_coordinates",
+  "scatter_source": ".scatter_source",
+  "scatter_source_empty": ".scatter_source_empty",
+  "scatter_layered": "Scatter Layered"
+}
+
+prev_node_tree_names = {
   "scatter_source": "Scatter Source",
   "scatter_source_empty": "Scatter Source Empty",
-  "scatter_layered": "Scatter Layered"
 }

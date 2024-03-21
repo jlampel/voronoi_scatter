@@ -42,11 +42,14 @@ def remove_socket(node_tree, in_out, name):
 
 def get_socket(node_tree, in_out, name):
   if in_out == 'INPUT' and bpy.app.version < (4, 0, 0):
-    return node_tree.inputs[name]
+    if name in [x.name for x in node_tree.inputs]:
+      return node_tree.inputs[name]
   elif in_out == 'OUTPUT' and bpy.app.version < (4, 0, 0):
-    return node_tree.outputs[name]
+    if name in [x.name for x in node_tree.outputs]:
+      return node_tree.outputs[name]
   else:
-    return node_tree.interface.items_tree[name]
+    if name in [x.name for x in node_tree.interface.items_tree]:
+      return node_tree.interface.items_tree[name]
 
 def get_io_sockets(node_tree, in_out):
   sockets = []

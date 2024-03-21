@@ -25,7 +25,7 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 import bpy
 from bpy.types import (Operator)
 from .utilities.utilities import append_node, mode_toggle, is_shader
-from .defaults import node_names
+from .defaults import node_tree_names
 
 def connect_vector(links, nodes, from_node, to_node):
     has_coordinates = False
@@ -39,7 +39,8 @@ def create_randomize_node(self, context):
     nodes = context.selected_nodes[0].id_data.nodes
     links = context.selected_nodes[0].id_data.links
     for node in context.selected_nodes:
-        randomize_node = append_node(self, nodes, node_names['randomize_noise_hsv'])
+        randomize_node = append_node(self, nodes, node_tree_names['randomize_noise_hsv'])
+        randomize_node.label = 'HSV Noise'
         connect_vector(links, nodes, node, randomize_node)
         randomize_node.width = 200
         if is_shader(node):

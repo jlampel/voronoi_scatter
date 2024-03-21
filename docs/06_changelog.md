@@ -7,6 +7,13 @@ search_exclude: false
 
 # Changelog
 
+## v1.12
+- Fixed error with transparent scattering in Blender 4.0
+- Fixed issue with unscattering instances of scatter nodes
+- Removed inner Scattershot utility nodes from the add group menu
+- Fixed issue with baking non-PBR images
+- Improved PBR auto-detection to include less false positives 
+
 ## v1.11
 - Fixed issue with extra output sockets when noise blending in Blender 4.0
 - Fixed poll error in search outside of shader editor

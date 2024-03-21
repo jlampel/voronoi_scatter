@@ -55,17 +55,17 @@ def extract_images(self, selected_nodes):
 
 def remove_scatter_nodes(selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
-    trees_to_delete = []
-    groups = get_groups(selected_nodes)
-    trees_to_delete.extend(groups)
 
     for node in selected_nodes:
         if get_scatter_sources([node]):
             nodes.remove(node)
 
-    for tree in [x.name for x in trees_to_delete]:
-        if tree in [x.name for x in bpy.data.node_groups]:
-            bpy.data.node_groups.remove(bpy.data.node_groups[tree])
+    # trees_to_delete = []
+    # groups = get_groups(selected_nodes)
+    # trees_to_delete.extend(groups)
+    # for tree in [x.name for x in trees_to_delete]:
+    #     if tree in [x.name for x in bpy.data.node_groups]:
+    #         bpy.data.node_groups.remove(bpy.data.node_groups[tree])
 
 
 class NODE_OT_unscatter(Operator):

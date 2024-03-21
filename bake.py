@@ -72,7 +72,7 @@ def bake_scatter(self, context, objects):
   nodes = selected_nodes[0].id_data.nodes
   links = selected_nodes[0].id_data.links
 
-  only_displacement = self.Displacement and all(x == False for x in [
+  only_displacement = self.Displacement and all(x == False for x in [self.Image, 
     self.Albedo, self.AO, self.Metalness, self.Roughness, self.Glossiness,
     self.Specular, self.Emission, self.Alpha, self.Bump, self.Normal
   ])
@@ -82,12 +82,12 @@ def bake_scatter(self, context, objects):
     channel_outputs = scatter_node.outputs
 
     new_textures = []
-    bake_outputs = [x for x in channel_outputs if x.name in texture_names.keys()]
+    bake_outputs = [x for x in channel_outputs if x.name == 'Image' or x.name in texture_names.keys()]
 
     clear_bake(context)
 
     for output_idx, output in enumerate(bake_outputs):
-      if getattr(self, output.name) or output.name == 'Image':
+      if getattr(self, output.name):
         texture_node_name = f"Baked {output.name}"
 
         texture_file_name = preferences.name.replace(
@@ -188,8 +188,9 @@ def bake_scatter(self, context, objects):
 
     # Moves Displacement to the bottom
     displacement_socket = get_socket(scatter_node.node_tree, 'OUTPUT', 'Baked Displacement')
-    output_count = len(scatter_node.outputs)
-    move_socket(scatter_node.node_tree, 'OUTPUT', displacement_socket, output_count -2)
+    if displacement_socket:
+      output_count = len(scatter_node.outputs)
+      move_socket(scatter_node.node_tree, 'OUTPUT', displacement_socket, output_count -2)
 
     # Sets up nodes for UVs
     # TODO: Make sure the right UVs are always used
@@ -208,7 +209,7 @@ def bake_scatter(self, context, objects):
     # Hides unused sockets
     if not only_displacement:
       for output in scatter_node.outputs:
-        if output.name in texture_names.keys() or output.name == 'Random Color':
+        if output.name in texture_names.keys() or output.name == 'Random Color' or output.name == 'Image':
           output.hide = True
       for input in scatter_node.inputs:
         if input.name != 'UV Map':
@@ -261,6 +262,11 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     default='combined'
   )
 
+  Image: bpy.props.BoolProperty(
+    name="Image",
+    description="Bake the image channel",
+    default = False
+  )
   Albedo: bpy.props.BoolProperty(
     name="Albedo",
     description="Bake the albedo channel",
@@ -314,7 +320,7 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
   Displacement: bpy.props.BoolProperty(
     name="Displacement",
     description="Bake the displacement channel",
-    default = True
+    default = False
   )
 
   should_unwrap: bpy.props.BoolProperty(
@@ -393,6 +399,8 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
     # layout.prop(self, "bake_type", expand = True)
     if self.bake_type == 'combined':
       channels_column = layout.column(heading = 'Channels')
+      if 'Image' in channels:
+        channels_column.prop(self, "Image")
       if 'Albedo' in channels:
         channels_column.prop(self, "Albedo")
       if 'AO' in channels:

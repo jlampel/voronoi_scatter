@@ -25,7 +25,7 @@ along with this program; if not, see <https://www.gnu.org/licenses/>.
 import bpy
 from bpy.types import (Operator)
 from .utilities.utilities import append_node, average_location, mode_toggle
-from .defaults import node_names
+from .defaults import node_tree_names
 
 def check_vector_input(selected_nodes):
     has_vector = False
@@ -41,7 +41,8 @@ def create_triplanar_node(self, context):
     nodes = context.selected_nodes[0].id_data.nodes
     links = context.selected_nodes[0].id_data.links
     textures = context.selected_nodes
-    triplanar_node = append_node(self, nodes, node_names['tri-planar'])
+    triplanar_node = append_node(self, nodes, node_tree_names['tri-planar'])
+    triplanar_node.label = 'Tri-Planar Mapping'
     triplanar_node.location = [
         min([x.location[0] for x in textures]) - 250,
         average_location(textures)[1]

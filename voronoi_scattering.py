@@ -28,7 +28,7 @@ from pprint import pprint
 from bpy.types import (Object, Operator)
 from bpy.props import (BoolProperty, EnumProperty)
 from . import defaults
-from .defaults import data_channels, detail_channels, data_color_spaces, section_labels, node_names
+from .defaults import data_channels, detail_channels, data_color_spaces, section_labels, node_tree_names
 from .noise_blending import noise_blend
 from .unscatter import extract_images
 from .utilities.utilities import append_node, create_friendly_name, average_location, remove_section, get_scatter_sources, mode_toggle, get_groups
@@ -73,9 +73,9 @@ def append_scatter_node(self, context, selected_nodes):
   nodes = selected_nodes[0].id_data.nodes
   selected_textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
   if self.layering == 'overlapping':
-    scatter_node = append_node(self, nodes, node_names['scatter_overlapping'])
+    scatter_node = append_node(self, nodes, node_tree_names['scatter_overlapping'])
   else:
-    scatter_node = append_node(self, nodes, node_names['scatter'])
+    scatter_node = append_node(self, nodes, node_tree_names['scatter'])
   scatter_node.width = 250
   scatter_node.location = [average_location(selected_textures)[0], average_location(selected_textures)[1] + 150]
   return scatter_node
@@ -94,12 +94,12 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
   def add_scatter_source(idx, channel_idx=0, channel_len=0):
     scatter_source = nodes.new("ShaderNodeGroup")
     # For some reason, using
-    # scatter_source.node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
+    # scatter_source.node_tree = bpy.data.node_groups[node_tree_names['scatter_source_empty']].copy()
     # will alter the original scatter_source_empty and future scatters will have duplicate images
-    scatter_source_node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
+    scatter_source_node_tree = bpy.data.node_groups[node_tree_names['scatter_source_empty']].copy()
     scatter_source.node_tree = scatter_source_node_tree
-    scatter_source.node_tree.name = node_names['scatter_source']
-    scatter_source.name = node_names['scatter_source']
+    scatter_source.node_tree.name = node_tree_names['scatter_source']
+    scatter_source.name = node_tree_names['scatter_source']
     scatter_source.location = [nodes['Scatter Coordinates'].location[0] + 400, - (225 * idx) - (250 * channel_idx * channel_len)]
     return scatter_source
 
@@ -225,14 +225,14 @@ def create_scatter_sources(self, scatter_node, sorted_textures, transparency):
         scatter_sources[channel].append(scatter_source)
     elif self.layering == 'overlapping':
       scatter_source = nodes['Scatter Source']
-      scatter_source.node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
+      scatter_source.node_tree = bpy.data.node_groups[node_tree_names['scatter_source_empty']].copy()
       image_nodes = setup_image_nodes(scatter_source, channel, sorted_textures[channel])
       copy_to_all_scatter_sources(scatter_source)
       scatter_sources[channel].append(scatter_source)
     elif channel_idx == 0:
       scatter_source = nodes['Scatter Source']
-      scatter_source.node_tree = bpy.data.node_groups[node_names['scatter_source_empty']].copy()
-      scatter_source.node_tree.name = node_names['scatter_source']
+      scatter_source.node_tree = bpy.data.node_groups[node_tree_names['scatter_source_empty']].copy()
+      scatter_source.node_tree.name = node_tree_names['scatter_source']
       image_nodes = setup_image_nodes(scatter_source, channel, sorted_textures[channel])
       scatter_source_outputs = get_io_sockets(scatter_source.node_tree, 'OUTPUT')
       scatter_source_outputs[0].name = channel
@@ -291,7 +291,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
 
   def create_randomize_node(prev_node, scatter_source, channel):
     if channel in data_channels:
-      randomize_node = append_node(self, nodes, node_names['randomize_cell_value'])
+      randomize_node = append_node(self, nodes, node_tree_names['randomize_cell_value'])
       randomize_node.location = [prev_node.location[0] + 250, prev_node.location[1]]
       links.new(prev_node.outputs[channel], randomize_node.inputs[0])
       links.new(scatter_source.outputs[1], randomize_node.inputs[1])
@@ -299,7 +299,7 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
       randomize_node.inputs['Random Seed'].default_value = random()
       links.new(randomize_node.outputs[0], nodes['Group Output'].inputs[channel])
     else:
-      randomize_node = append_node(self, nodes, node_names['randomize_cell_hsv'])
+      randomize_node = append_node(self, nodes, node_tree_names['randomize_cell_hsv'])
       randomize_node.location = [prev_node.location[0] + 250, prev_node.location[1]]
       links.new(prev_node.outputs[channel], randomize_node.inputs[0])
       links.new(scatter_source.outputs[1], randomize_node.inputs[1])
@@ -371,7 +371,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
 
   def create_randomize_hsv(color_output, channel):
     if channel in data_channels:
-      randomize_node = append_node(self, nodes, node_names['randomize_noise_value'])
+      randomize_node = append_node(self, nodes, node_tree_names['randomize_noise_value'])
       randomize_node.location = [color_output.node.location[0] + 250, color_output.node.location[1]]
       links.new(color_output, randomize_node.inputs[0])
       links.new(group_inputs[channel + ' Noise Scale'], randomize_node.inputs['Noise Scale'])
@@ -381,7 +381,7 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
       links.new(nodes['Scaled Coordinates'].outputs[0], randomize_node.inputs['Vector'])
       links.new(randomize_node.outputs[0], nodes['Group Output'].inputs[channel])
     else:
-      randomize_node = append_node(self, nodes, node_names['randomize_noise_hsv'])
+      randomize_node = append_node(self, nodes, node_tree_names['randomize_noise_hsv'])
       randomize_node.location = [color_output.node.location[0] + 250, color_output.node.location[1]]
       links.new(color_output, randomize_node.inputs[0])
       links.new(group_inputs['Color Noise Scale'], randomize_node.inputs['Noise Scale'])
@@ -467,7 +467,7 @@ def correct_normals(self, context, scatter_node, prev_outputs):
   color_results = {}
 
   def fix_uv_normals(normal_map):
-    normal_node = append_node(self, nodes, node_names['uv_normal_map'])
+    normal_node = append_node(self, nodes, node_tree_names['uv_normal_map'])
     normal_node.location = [normal_map.node.location[0] + 250, normal_map.node.location[1]]
     links.new(normal_map, normal_node.inputs[0])
     links.new(nodes['Scatter Coordinates'].outputs['Random Color'], normal_node.inputs['Random Color'])
@@ -478,7 +478,7 @@ def correct_normals(self, context, scatter_node, prev_outputs):
     return normal_node.outputs[0]
 
   def fix_triplanar_normals(normal_map):
-    normal_node = append_node(self, nodes, node_names['tri-planar_normal_map'])
+    normal_node = append_node(self, nodes, node_tree_names['tri-planar_normal_map'])
     normal_node.location = [normal_map.node.location[0] + 250, normal_map.node.location[1]]
     links.new(normal_map, normal_node.inputs[0])
     links.new(nodes['Tri-Planar Mapping'].outputs['Axes'], normal_node.inputs['Axes'])
@@ -527,21 +527,23 @@ def manage_alpha(self, scatter_node, scatter_sources, color_results, transparenc
     if new_input_name not in scatter_node.inputs:
       create_socket(scatter_node.node_tree, 'INPUT', 'NodeSocketColor', new_input_name)
     links.new(nodes['Group Input'].outputs[new_input_name], alpha_over_node.inputs[6])
+
+    new_input = scatter_node.inputs[new_input_name]
     if channel in ['Bump', 'Roughness', 'Glossiness', 'Specular', 'Albedo']:
-      if bpy.app.version < (4, 0, 0):
-        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5, 1]
+      if len(new_input.default_value) == 3:
+        new_input.default_value = [0.5, 0.5, 0.5]
       else:
-        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 0.5]
+        new_input.default_value = [0.5, 0.5, 0.5, 1]
     elif channel == 'AO':
-      if bpy.app.version < (4, 0, 0):
-        scatter_node.inputs[new_input_name].default_value = [1, 1, 1, 1]
+      if len(new_input.default_value) == 3:
+        new_input.default_value = [1, 1, 1]
       else:
-        scatter_node.inputs[new_input_name].default_value = [1, 1, 1]
+        new_input.default_value = [1, 1, 1, 1]
     elif channel == 'Normal':
-      if bpy.app.version < (4, 0, 0):
-        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 1, 1]
+      if len(new_input.default_value) == 3:
+        new_input.default_value = [0.5, 0.5, 1]
       else:
-        scatter_node.inputs[new_input_name].default_value = [0.5, 0.5, 1]
+        new_input.default_value = [0.5, 0.5, 1, 1]
 
   if transparency and self.layering != 'overlapping':
     for channel_idx, channel in enumerate(color_results.keys()):
@@ -637,26 +639,6 @@ def cleanup_sockets(self, scatter_node, transparency):
   inputs = scatter_node.inputs
   node_tree_inputs = get_io_sockets(scatter_node.node_tree, 'INPUT')
 
-#   if bpy.app.version < (4, 0, 0):
-#     new_inputs = []
-#     input_count = len(inputs)
-#     for label in section_labels:
-#       count = 0
-#       for input in inputs:
-#         count += 1
-#         if label == input.name:
-#           new_input = node_tree_inputs.new('NodeSocketVirtual', label)
-#           inputs[input_count + len(new_inputs)].display_shape = 'DIAMOND_DOT'
-#           new_inputs.append([new_input, count])
-#           break
-#     for input_idx in range(len(new_inputs)):
-#       move_socket(scatter_node.node_tree, 'INPUT', new_inputs[input_idx], new_inputs[input_idx][1] + input_idx)
-#     for label in section_labels:
-#       for input in node_tree_inputs:
-#         if input.name == label:
-#           node_tree_inputs.remove(input)
-#           break
-
   if not transparency:
     remove_socket(scatter_node.node_tree, 'INPUT', 'Transparency')
 
@@ -667,6 +649,8 @@ def cleanup_groups():
   groups = bpy.data.node_groups
   if 'Scatter Source Empty' in [x.name for x in groups]:
     groups.remove(groups['Scatter Source Empty'])
+  if '.scatter_source_empty' in [x.name for x in groups]:
+    groups.remove(groups['.scatter_source_empty'])
 
 def connect_shader(self, selected_nodes, scatter_node, transparency):
   nodes = selected_nodes[0].id_data.nodes
@@ -761,7 +745,7 @@ def create_coordinates_node(self, context, selected_nodes):
 
   # append and attach node
   textures = [x for x in selected_nodes if x.type == 'TEX_IMAGE']
-  scatter_node = append_node(self, nodes, node_names['scatter_vectors'])
+  scatter_node = append_node(self, nodes, node_tree_names['scatter_vectors'])
   scatter_node.label = "Scatter Mapping"
   scatter_node.width = 250
   scatter_node.location = [
@@ -774,7 +758,7 @@ def create_coordinates_node(self, context, selected_nodes):
 
   # Create or attach vector coordinates
   if self.projection_method == 'tri-planar':
-    tri_planar = append_node(self, nodes, node_names['tri-planar'])
+    tri_planar = append_node(self, nodes, node_tree_names['tri-planar'])
     tri_planar.label = "Tri-Planar Mapping"
     tri_planar.width = 200
     tri_planar.location = [scatter_node.location[0] - 250, scatter_node.location[1] - 250]
@@ -817,7 +801,7 @@ def create_layered_node(self, context, selected_nodes):
     nodes = selected_nodes[0].id_data.nodes
     # creating the outer node like this is wasteful, but Blender crashes if creating so many node tree inputs via python
     master_node = setup_scatter_node(self, context, selected_nodes, should_remove_images=False)
-    master_node.node_tree.name = node_names['scatter_layered']
+    master_node.node_tree.name = node_tree_names['scatter_layered']
     master_node.location = average_location(selected_nodes)
     groups = get_groups(master_node.node_tree.nodes)
     for group in groups:
