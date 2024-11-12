@@ -37,7 +37,7 @@ section_labels = ["Transformation", "Cell Randomization", "Texture Randomization
 # Including any of the following words between separaters [' ', '-', '_'] will add the texture to the corresponding PBR channel
 texture_names = {
   'Albedo': ['albedo', 'base_color', 'basecolor', 'base_col', 'base', 'color', 'diffuse', 'diff', 'col', 'c', 'd'],
-  'AO': ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion', 'occ'],
+  'AO': ['ao', 'ambient_occlusion', 'ambient occlusion', 'occlusion', 'occ', 'ambientocclusion'],
   'Metalness': ['metal', 'metallic', 'metalness', 'm', 'met', 'mt', 'ml'],
   'Roughness': ['roughness', 'rough', 'r', 'rgh', 'rh'],
   'Glossiness': ['gloss', 'glossiness', 'gl', 'gls', 'g'],
@@ -45,7 +45,7 @@ texture_names = {
   'Emission': ['emit', 'emission', 'emissive', 'glow', 'glw', 'em', 'e'],
   'Alpha': ['alpha', 'transparent', 'transparency', 'opacity', 'a'],
   'Bump': ['bmp', 'bump', 'b'],
-  'Normal': ['normal', 'nrm', 'n', 'nrlm', 'nor'],
+  'Normal': ['normal', 'nrm', 'n', 'nrlm', 'nor', 'normalgl'],
   'Displacement': ['d', 'dp', 'disp', 'displacement', 'height', 'h']
 }
 
