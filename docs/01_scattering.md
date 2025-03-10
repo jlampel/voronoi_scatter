@@ -7,7 +7,7 @@ search_exclude: false
 
 # Scatter Images
 
-Once you install the Scattershot addon, you'll find a new operator called Scatter Images in the Node menu of the Shader Editor. To access it more quickly, right quick and add it to your quick favorites (Q) menu or use the right click context menu.
+Once you install the Scattershot addon, you'll find a new operator called Scatter Images in the Node menu of the Shader Editor. To access it more quickly, right click and add it to your quick favorites (Q) menu or use the right click context menu.
 
 You must have one or more image textures selected in order to use the Scatter Images command. The tooltips for the settings are pretty descriptive, so hover your mouse over each button if you forget what it does. Click 'OK' and your textures will be converted into a scatter node.
 
