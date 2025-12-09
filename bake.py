@@ -38,11 +38,13 @@ def get_bake_properties(scene):
     'use_selected_to_active': scene.render.bake.use_selected_to_active,
     'target': scene.render.bake.target,
     'use_clear': scene.render.bake.use_clear,
-    'use_bake_multires': scene.render.use_bake_multires,
     'samples': scene.cycles.samples,
     'margin_type': scene.render.bake.margin_type,
     'margin': scene.render.bake.margin,
-    'denoise': scene.cycles.use_denoising
+    'denoise': scene.cycles.use_denoising,
+    'use_bake_multires': (
+      scene.render.bake.use_multires if bpy.app.version >= (5,0,0) else scene.render.use_bake_multires
+    ),
   }
 
 
@@ -52,11 +54,14 @@ def set_bake_properties(scene, properties):
   scene.render.bake.use_selected_to_active = properties['use_selected_to_active']
   scene.render.bake.target = properties['target']
   scene.render.bake.use_clear = properties['use_clear']
-  scene.render.use_bake_multires = properties['use_bake_multires']
   scene.cycles.samples = properties['samples']
   scene.render.bake.margin_type = properties['margin_type']
   scene.render.bake.margin = properties['margin']
   scene.cycles.use_denoising = properties['denoise']
+  if bpy.app.version >= (5,0,0):
+    scene.render.bake.use_multires = properties['use_bake_multires']
+  else:
+    scene.render.use_bake_multires = properties['use_bake_multires']
 
 
 def is_in_texture_set(object, active_material):

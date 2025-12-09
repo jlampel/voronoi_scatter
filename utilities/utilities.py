@@ -28,6 +28,7 @@ import bpy
 from copy import copy
 from ..defaults import texture_names, default_view_transforms, node_tree_names, prev_node_tree_names, package_name
 
+
 def append_node(self, nodes, node_tree_name):
   if bpy.app.version < (4, 0, 0):
     node_file = 'scatter_nodes'
@@ -51,6 +52,7 @@ def append_node(self, nodes, node_tree_name):
   node_group.node_tree = bpy.data.node_groups[appended_node.name]
   node_group.node_tree.name = node_tree_name
   return node_group
+
 
 def average_location(selected_nodes):
   return [
@@ -95,6 +97,7 @@ def create_friendly_name(context, texture_name):
     return name_array[-1]
   else:
     return 'Image'
+
 
 def get_scatter_sources(selected_nodes):
   scatter_sources = []
@@ -210,6 +213,7 @@ def remove_section(nodes, title):
     if node.parent and node.parent.name == title:
       nodes.remove(node)
   nodes.remove(nodes[title])
+
 
 def get_default_color_transform(user_transform):
   test_transform = 'not_a_real_transform'

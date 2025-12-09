@@ -35,7 +35,6 @@ def denoise_image(context, image, format_settings):
   comp_scene = bpy.data.scenes.new('Temp Denoising Scene')
   context.window.scene = comp_scene
   context.area.ui_type = 'CompositorNodeTree'
-  comp_scene.use_nodes = True
   comp_scene.render.resolution_x = image.size[0]
   comp_scene.render.resolution_y = image.size[1]
   camera_data = bpy.data.cameras.new('ScattershotTempCamera')
@@ -43,14 +42,24 @@ def denoise_image(context, image, format_settings):
   context.scene.camera = camera
 
   # Composite image
-  nodes = comp_scene.node_tree.nodes
-  links = comp_scene.node_tree.links
+  if bpy.app.version >= (5,0,0):
+    group = bpy.data.node_groups.new('Temp Denoising Nodes', 'CompositorNodeTree')
+    comp_scene.compositing_node_group = group
+    nodes = group.nodes
+    links = group.links
+    output = nodes.new('NodeGroupOutput')
+    group.interface.new_socket('Image', in_out='OUTPUT', socket_type='NodeSocketColor')
+  else:
+    comp_scene.use_nodes = True
+    nodes = comp_scene.node_tree.nodes
+    links = comp_scene.node_tree.links
+    output = nodes['Composite']
 
   texture = nodes.new('CompositorNodeImage')
   texture.image = image
   denoise = nodes.new('CompositorNodeDenoise')
   links.new(texture.outputs[0], denoise.inputs[0])
-  links.new(denoise.outputs[0], nodes['Composite'].inputs[0])
+  links.new(denoise.outputs[0], output.inputs[0])
 
   # Save image
   bpy.ops.render.render()
@@ -67,6 +76,8 @@ def denoise_image(context, image, format_settings):
   context.window.scene = bpy.data.scenes[prev_scene_name]
   context.area.type = prev_editor['area_type']
   context.area.ui_type = prev_editor['ui_type']
+  if bpy.app.version >= (5,0,0):
+    bpy.data.node_groups.remove(group)
 
 class IMAGE_OT_denoise_image(bpy.types.Operator):
   bl_label = "Denoise"
