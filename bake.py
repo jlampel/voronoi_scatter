@@ -465,6 +465,13 @@ class NODE_OT_bake_scatter(bpy.types.Operator):
       return context.window_manager.invoke_props_dialog(self)
 
   def execute(self, context):
+    if all(x == False for x in [
+      self.Image, self.Albedo, self.AO, self.Metalness, self.Roughness, self.Glossiness,
+      self.Specular, self.Emission, self.Alpha, self.Bump, self.Normal, self.Displacement
+    ]):
+      self.report({'WARNING'}, 'Cancelling bake. Please select at least one channel to bake.')
+      return {'FINISHED'}
+    
     # switching modes prevents context errors
     prev_mode = mode_toggle(context, 'OBJECT')
     prev_bake_properties = get_bake_properties(context.scene)

@@ -10,6 +10,8 @@ search_exclude: false
 ## v1.13
 - Fixed issue with Overlapping Alpha scattering when not using Randomize Cell Color
 - Fixed Baking scatter in Blender 5.0
+- Added warning when baking with no channels selected
+- Added support for Extensions system
 
 ## v1.12
 - Fixed error with transparent scattering in Blender 4.0
