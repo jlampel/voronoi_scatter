@@ -339,26 +339,24 @@ def randomize_cell_colors(self, context, scatter_node, scatter_sources, prev_out
           color_results[channel].append(output)
     remove_unused_inputs()
 
+  elif not self.use_random_col and self.layering != 'overlapping':
+    for channel in prev_outputs:
+      color_results[channel] = []
+      for output in prev_outputs[channel]:
+        color_results[channel].append(output)
+    remove_unused_inputs()
+
   elif self.use_random_col and self.layering == 'overlapping':
     color_results['Image'] = []
     color_results['Image'].append(nodes['Color Output'].outputs[0])
 
   elif not self.use_random_col and self.layering == 'overlapping':
     color_results['Image'] = []
-    bpy.data.node_groups.remove(nodes['Randomize Cell HSV'].node_tree)
-    nodes.remove(nodes['Randomize Cell HSV'])
-    nodes.remove(nodes['Group Input Random Col'])
     color_results['Image'].append(nodes['Color Result'].outputs[0])
+    nodes['Randomize Cell HSV'].mute = True
     remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Hue')
     remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Saturation')
     remove_socket(scatter_node.node_tree, 'INPUT', 'Random Cell Value')
-
-  elif not self.use_random_col:
-    for channel in prev_outputs:
-      color_results[channel] = []
-      for output in prev_outputs[channel]:
-        color_results[channel].append(output)
-    remove_unused_inputs()
 
   return color_results
 
@@ -436,9 +434,11 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
         else:
           color_results[channel].append(color_output)
     remove_unused_inputs()
+
   elif not self.use_noise_col and self.layering != 'overlapping':
     color_results = prev_outputs
     remove_unused_inputs()
+
   elif self.use_noise_col and self.layering == 'overlapping':
     color_results['Image'] = []
     if not self.use_random_col:
@@ -449,14 +449,10 @@ def randomize_texture_colors(self, context, scatter_node, scatter_sources, prev_
     links.new(group_inputs['Color Noise Scale'], nodes['Randomize Texture HSV'].inputs['Noise Scale'])
     links.new(group_inputs['Color Noise Detail'], nodes['Randomize Texture HSV'].inputs['Noise Detail'])
     links.new(group_inputs['Color Noise Warp'], nodes['Randomize Texture HSV'].inputs['Noise Warp'])
+
   elif not self.use_noise_col and self.layering == 'overlapping':
     color_results['Image'] = []
-    bpy.data.node_groups.remove(nodes['Randomize Texture HSV'].node_tree)
-    nodes.remove(nodes['Randomize Texture HSV'])
-    if self.use_random_col:
-      links.new(nodes['Randomize Cell HSV'].outputs[0], nodes['Color Output'].inputs[0])
-    else:
-      links.new(nodes['Color Result'].outputs[0], nodes['Color Output'].inputs[0])
+    nodes['Randomize Texture HSV'].mute = True
     remove_unused_inputs()
 
   return color_results
